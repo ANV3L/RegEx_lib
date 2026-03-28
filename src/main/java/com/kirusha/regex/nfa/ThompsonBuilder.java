@@ -193,9 +193,32 @@ public class ThompsonBuilder {
         NFAFragment leftFragment = buildFragment(node.getLeft());
         NFAFragment rightFragment = buildFragment(node.getRight());
 
+        // Optimization: if left is epsilon fragment (start -> ε -> accept with no other transitions),
+        // just use right fragment's structure
+        if (isSimpleEpsilon(leftFragment)) {
+            return rightFragment;
+        }
+        if (isSimpleEpsilon(rightFragment)) {
+            return leftFragment;
+        }
+
         leftFragment.getAccept().addEpsilonTransition(rightFragment.getStart());
 
         return new NFAFragment(leftFragment.getStart(), rightFragment.getAccept());
+    }
+
+    private boolean isSimpleEpsilon(NFAFragment fragment) {
+        NFAState start = fragment.getStart();
+        NFAState accept = fragment.getAccept();
+        return start.getTransitions().isEmpty() 
+            && start.getEpsilonTransitions().size() == 1 
+            && start.getEpsilonTransitions().contains(accept)
+            && accept.getTransitions().isEmpty()
+            && accept.getEpsilonTransitions().isEmpty()
+            && start.getGroupOpen() == -1
+            && accept.getGroupClose() == -1
+            && start.getBackrefTransitions().isEmpty()
+            && accept.getBackrefTransitions().isEmpty();
     }
 
     /**

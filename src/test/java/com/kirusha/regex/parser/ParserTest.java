@@ -812,3 +812,60 @@ class ParserTest {
         }
     }
 }
+
+
+
+@DisplayName("Parser Stress Tests (40)")
+class ParserStressTest {
+    private Lexer lexer;
+    private Parser parser;
+
+    @BeforeEach void setUp() { lexer = new Lexer(); parser = new Parser(); }
+
+    private ASTNode root(String s) { return parser.parse(lexer.tokenize(s)).getRoot(); }
+    private ParserResult parse(String s) { return parser.parse(lexer.tokenize(s)); }
+
+    @Test void literal() { assertInstanceOf(LiteralNode.class, root("a")); }
+    @Test void epsilon() { assertInstanceOf(EpsilonNode.class, root("#")); }
+    @Test void backref() { assertInstanceOf(BackReferenceNode.class, root("\\1")); }
+    @Test void charClass() { assertInstanceOf(CharClassNode.class, root("[abc]")); }
+    @Test void emptyCharClass() { assertTrue(root("[]") instanceof CharClassNode || root("[]") instanceof EpsilonNode); }
+    @Test void concat() { assertInstanceOf(ConcatenationNode.class, root("ab")); }
+    @Test void alt() { assertInstanceOf(AlternationNode.class, root("a|b")); }
+    @Test void star() { assertInstanceOf(KleeneStarNode.class, root("a*")); }
+    @Test void repeat() { assertInstanceOf(RepeatNode.class, root("a{3}")); }
+    @Test void group() { assertInstanceOf(GroupNode.class, root("(a)")); }
+    @Test void groupCount0() { assertEquals(0, parse("abc").getGroupCount()); }
+    @Test void groupCount1() { assertEquals(1, parse("(a)b").getGroupCount()); }
+    @Test void groupCount3() { assertEquals(3, parse("(a)(b(c))").getGroupCount()); }
+    @Test void precedenceAltConcat() { assertInstanceOf(AlternationNode.class, root("a|bc")); }
+    @Test void precedenceStarConcat() { assertInstanceOf(ConcatenationNode.class, root("ab*")); }
+    @Test void nestedGroup() { assertEquals(2, parse("((a))").getGroupCount()); }
+    @Test void repeatZero() { assertEquals(0, ((RepeatNode) root("a{0}")).getCount()); }
+    @Test void repeatFive() { assertEquals(5, ((RepeatNode) root("a{5}")).getCount()); }
+    @Test void errorUnclosed() { assertThrows(ParserException.class, () -> parse("(")); }
+    @Test void errorExtraClose() { assertThrows(ParserException.class, () -> parse("a)")); }
+    @Test void errorEmptyAlt() { assertThrows(ParserException.class, () -> parse("a|")); }
+    @Test void errorLeftAlt() { assertThrows(ParserException.class, () -> parse("|a")); }
+    @Test void errorRepeatNoNum() { assertThrows(ParserException.class, () -> parse("a{}")); }
+    @Test void errorRepeatNonNum() { assertThrows(ParserException.class, () -> parse("a{b}")); }
+    @Test void errorUnclosedRepeat() { assertThrows(ParserException.class, () -> parse("a{3")); }
+    @Test void errorUnclosedBracket() { assertThrows(ParserException.class, () -> parse("[")); }
+    @Test void errorEmpty() { assertThrows(ParserException.class, () -> parse("")); }
+    @Test void errorNull() { assertThrows(Exception.class, () -> parser.parse(null)); }
+    @Test void originalInput() { assertEquals("a|b", parse("a|b").getOriginalInput()); }
+    @Test void rootNotNull() { assertNotNull(parse("a").getRoot()); }
+    @Test void tripleAlt() { assertInstanceOf(AlternationNode.class, root("a|b|c")); }
+    @Test void tripleConcat() { assertInstanceOf(ConcatenationNode.class, root("abc")); }
+    @Test void groupWithAlt() { assertInstanceOf(GroupNode.class, root("(a|b)")); }
+    @Test void starOverGroup() { assertInstanceOf(KleeneStarNode.class, root("(ab)*")); }
+    @Test void repeatOverGroup() { assertInstanceOf(RepeatNode.class, root("(ab){2}")); }
+    @Test void charClassConcat() { assertInstanceOf(ConcatenationNode.class, root("[ab]c")); }
+    @Test void backrefParsed() { assertEquals(1, ((BackReferenceNode) root("\\1")).getGroupNumber()); }
+    @Test void groupNumber() { assertEquals(1, ((GroupNode) root("(a)")).getGroupNumber()); }
+    @Test void deepGroup() { assertEquals(3, parse("((a)(b))").getGroupCount()); }
+    @Test void concatEpsilon() {
+        ConcatenationNode c = (ConcatenationNode) root("a#");
+        assertInstanceOf(EpsilonNode.class, c.getRight());
+    }
+}

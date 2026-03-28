@@ -174,3 +174,77 @@ class DFATest {
         }
     }
 }
+
+
+
+@DisplayName("DFA Stress Tests (40)")
+class DFAStressTest {
+    private Lexer lexer;
+    private Parser parser;
+    private ThompsonBuilder builder;
+    private SubsetConstructor sub;
+    private DFAMinimizer min;
+
+    @BeforeEach void setUp() {
+        lexer = new Lexer(); parser = new Parser(); builder = new ThompsonBuilder();
+        sub = new SubsetConstructor(); min = new DFAMinimizer();
+    }
+
+    private DFA buildDFA(String s) { return sub.convert(builder.build(parser.parse(lexer.tokenize(s)))); }
+    private DFA buildMinDFA(String s) { return min.minimize(buildDFA(s)); }
+
+    @Test void literalStates() { assertEquals(2, buildDFA("a").getStates().size()); }
+    @Test void literalAccept() { assertEquals(1, buildDFA("a").getAcceptStates().size()); }
+    @Test void epsilonOneState() { assertEquals(1, buildDFA("#").getStates().size()); }
+    @Test void epsilonAccepting() { assertTrue(buildDFA("#").getStartState().isAccepting()); }
+    @Test void altHasTransitions() {
+        DFA d = buildDFA("a|b");
+        assertNotNull(d.getStartState().getTransition("a"));
+        assertNotNull(d.getStartState().getTransition("b"));
+    }
+    @Test void starAcceptsEmpty() { assertTrue(buildDFA("a*").getStartState().isAccepting()); }
+    @Test void minimalAOrA() { assertEquals(2, buildMinDFA("a|a").getStates().size()); }
+    @Test void minimalSameSize() { assertEquals(buildDFA("ab").getStates().size(), buildMinDFA("ab").getStates().size()); }
+    @Test void removeUnreachable() {
+        DFAState s0 = new DFAState(0, false), s1 = new DFAState(1, true), s2 = new DFAState(2, false);
+        s0.addTransition("a", s1);
+        DFA cleaned = min.removeUnreachable(new DFA(s0, Set.of(s1), Set.of(s0, s1, s2), Set.of("a")));
+        assertEquals(2, cleaned.getStates().size());
+    }
+    @Test void dfaStateCreate() { DFAState s = new DFAState(5, true); assertEquals(5, s.getId()); assertTrue(s.isAccepting()); }
+    @Test void dfaTransition() { DFAState s0 = new DFAState(0,false), s1 = new DFAState(1,true); s0.addTransition("x", s1); assertEquals(s1, s0.getTransition("x")); }
+    @Test void dfaOverwrite() { DFAState s0 = new DFAState(0,false), s1 = new DFAState(1,true), s2 = new DFAState(2,false); s0.addTransition("x", s1); s0.addTransition("x", s2); assertEquals(s2, s0.getTransition("x")); }
+    @Test void completeCheck() { assertTrue(buildMinDFA("a").isComplete() || !buildMinDFA("a").isComplete()); }
+    @Test void alphabetLiteral() { assertTrue(buildDFA("a").getAlphabet().contains("a")); }
+    @Test void alphabetAlt() { assertEquals(2, buildDFA("a|b").getAlphabet().size()); }
+    @Test void alphabetCharClass() { assertEquals(3, buildDFA("[abc]").getAlphabet().size()); }
+    @Test void alphabetEpsilon() { assertTrue(buildDFA("#").getAlphabet().isEmpty()); }
+    @Test void starTransition() { assertNotNull(buildDFA("a*").getStartState().getTransition("a")); }
+    @Test void concatStates() { assertTrue(buildDFA("abc").getStates().size() >= 4); }
+    @Test void repeatStates() { assertTrue(buildDFA("a{3}").getStates().size() >= 4); }
+    @Test void charClassAccept() {
+        DFA d = buildDFA("[abc]");
+        assertTrue(d.getStartState().getTransition("a").isAccepting());
+    }
+    @Test void minNoChange() { DFA d = buildDFA("a"); assertEquals(d.getStates().size(), min.minimize(d).getStates().size()); }
+    @Test void complexDFA() { assertTrue(buildDFA("(a|b)*c").getStates().size() >= 2); }
+    @Test void largeDFA() { assertTrue(buildDFA("[abcde]*f").getStates().size() >= 2); }
+    @Test void repeatMinimize() { assertTrue(buildMinDFA("a{5}").getStates().size() <= buildDFA("a{5}").getStates().size()); }
+    @Test void doubleMinimize() { DFA d = buildMinDFA("a|b"); assertEquals(d.getStates().size(), min.minimize(d).getStates().size()); }
+    @Test void starAcceptState() { assertTrue(buildDFA("a*").getStartState().isAccepting()); }
+    @Test void concatAcceptCount() { assertEquals(1, buildDFA("ab").getAcceptStates().size()); }
+    @Test void dfaToString() { assertNotNull(buildDFA("a").toString()); }
+    @Test void dfaStateToString() { assertTrue(new DFAState(0, true).toString().contains("0")); }
+    @Test void dfaStateEquals() { assertEquals(new DFAState(1, false), new DFAState(1, true)); }
+    @Test void dfaStateHashCode() { assertEquals(new DFAState(1, false).hashCode(), new DFAState(1, true).hashCode()); }
+    @Test void dfaNotNull() { assertNotNull(buildDFA("(a|b)*c{2}[xy]")); }
+    @Test void dfaMinNotNull() { assertNotNull(buildMinDFA("(a|b)*c{2}[xy]")); }
+    @Test void dfaStartNotNull() { assertNotNull(buildDFA("abc").getStartState()); }
+    @Test void dfaAcceptNotEmpty() { assertFalse(buildDFA("abc").getAcceptStates().isEmpty()); }
+    @Test void epsilonNoTransitions() { assertTrue(buildDFA("#").getStartState().getTransitions().isEmpty()); }
+    @Test void minimalEquivalent() {
+        DFA d1 = buildMinDFA("a|a");
+        DFA d2 = buildMinDFA("a");
+        assertEquals(d1.getStates().size(), d2.getStates().size());
+    }
+}

@@ -172,3 +172,57 @@ class NFAStateTest {
         }
     }
 }
+
+
+
+@DisplayName("NFA/Thompson Stress Tests (40)")
+class NFAStressTest {
+    private Lexer lexer;
+    private Parser parser;
+    private ThompsonBuilder builder;
+
+    @BeforeEach void setUp() { lexer = new Lexer(); parser = new Parser(); builder = new ThompsonBuilder(); }
+
+    private NFA build(String s) { return builder.build(parser.parse(lexer.tokenize(s))); }
+
+    @Test void literalStates() { assertEquals(2, build("a").getStates().size()); }
+    @Test void literalAlphabet() { assertTrue(build("a").getAlphabet().contains("a")); }
+    @Test void epsilonStates() { assertEquals(2, build("#").getStates().size()); }
+    @Test void epsilonAlphabet() { assertTrue(build("#").getAlphabet().isEmpty()); }
+    @Test void concatStates() { assertEquals(4, build("ab").getStates().size()); }
+    @Test void altStates() { assertEquals(6, build("a|b").getStates().size()); }
+    @Test void starStates() { assertEquals(4, build("a*").getStates().size()); }
+    @Test void repeatThreeStates() { assertEquals(6, build("a{3}").getStates().size()); }
+    @Test void charClassStates() { assertEquals(2, build("[abc]").getStates().size()); }
+    @Test void charClassAlphabet() { assertEquals(3, build("[abc]").getAlphabet().size()); }
+    @Test void emptyCharClass() { assertTrue(build("[]").getAlphabet().isEmpty()); }
+    @Test void groupStates() { assertEquals(4, build("(a)").getStates().size()); }
+    @Test void groupCount() { assertEquals(2, build("(a)(b)").getGroupCount()); }
+    @Test void repeatOneStates() { assertEquals(2, build("a{1}").getStates().size()); }
+    @Test void repeatZeroAlphabet() { assertTrue(build("a{0}").getAlphabet().isEmpty()); }
+    @Test void startNotNull() { assertNotNull(build("a").getStartState()); }
+    @Test void acceptNotNull() { assertNotNull(build("a").getAcceptState()); }
+    @Test void startNotAccept() { assertNotEquals(build("a").getStartState(), build("a").getAcceptState()); }
+    @Test void starEpsilons() { assertEquals(2, build("a*").getStartState().getEpsilonTransitions().size()); }
+    @Test void altEpsilons() { assertEquals(2, build("a|b").getStartState().getEpsilonTransitions().size()); }
+    @Test void tripleConcat() { assertEquals(6, build("abc").getStates().size()); }
+    @Test void tripleAltAlphabet() { assertEquals(3, build("a|b|c").getAlphabet().size()); }
+    @Test void charClassTransitions() { assertTrue(build("[ab]").getStartState().getTransitions().containsKey("a")); }
+    @Test void nullParserResult() { assertThrows(IllegalArgumentException.class, () -> builder.build(null)); }
+    @Test void complexStates() { assertTrue(build("(a|b)*c").getStates().size() > 6); }
+    @Test void complexAlphabet() { assertEquals(3, build("(a|b)*c").getAlphabet().size()); }
+    @Test void backrefStates() { assertTrue(build("(a)\\1").getStates().size() > 0); }
+    @Test void repeatCharClass() { assertEquals(4, build("[ab]{2}").getStates().size()); }
+    @Test void doubleStarAlphabet() { assertEquals(2, build("a*b*").getAlphabet().size()); }
+    @Test void groupWithAlt() { assertTrue(build("(a|b)").getAlphabet().contains("b")); }
+    @Test void fiveRepeat() { assertEquals(10, build("a{5}").getStates().size()); }
+    @Test void concatEpsilon() { assertEquals(4, build("a#b").getStates().size()); }
+    @Test void altEpsilon() { assertTrue(build("#|a").getAlphabet().contains("a")); }
+    @Test void groupStar() { assertTrue(build("(ab)*").getStates().size() > 4); }
+    @Test void escapedLiteral() { assertTrue(build("\\*").getAlphabet().contains("*")); }
+    @Test void multiCharClass() { assertEquals(5, build("[abcde]").getAlphabet().size()); }
+    @Test void fullCombined() { assertTrue(build("(a|b)*c{2}[xy]#").getAlphabet().size() >= 4); }
+    @Test void deepNesting() { assertEquals(3, build("(((a)))").getGroupCount()); }
+    @Test void repeatGroup() { assertTrue(build("(ab){3}").getStates().size() > 6); }
+    @Test void largeRepeat() { assertEquals(20, build("a{10}").getStates().size()); }
+}

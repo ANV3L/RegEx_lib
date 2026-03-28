@@ -847,3 +847,59 @@ class LexerTest {
         }
     }
 }
+
+
+
+@DisplayName("Lexer Stress Tests (40)")
+class LexerStressTest {
+    private Lexer lexer;
+
+    @BeforeEach void setUp() { lexer = new Lexer(); }
+
+    @Test void empty() { assertEquals(0, lexer.tokenize("").size()); }
+    @Test void singleA() { assertEquals(1, lexer.tokenize("a").size()); }
+    @Test void allMeta() { assertEquals(9, lexer.tokenize("|*()[]{}#").size()); }
+    @Test void escapedAll() { assertEquals(9, lexer.tokenize("\\|\\*\\(\\)\\[\\]\\{\\}\\#").size()); }
+    @Test void backslashEnd() { assertThrows(LexerException.class, () -> lexer.tokenize("\\")); }
+    @Test void backref1() { assertEquals(TokenType.BACKREF, lexer.tokenize("\\1").getTokens().get(0).getType()); }
+    @Test void backref9() { assertEquals(TokenType.BACKREF, lexer.tokenize("\\9").getTokens().get(0).getType()); }
+    @Test void backref0isChar() { assertEquals(TokenType.CHAR, lexer.tokenize("\\0").getTokens().get(0).getType()); }
+    @Test void number() { assertEquals("123", lexer.tokenize("123").getTokens().get(0).getValue()); }
+    @Test void numberInBraces() { assertEquals(3, lexer.tokenize("{5}").size()); }
+    @Test void longString() { assertEquals(1000, lexer.tokenize("a".repeat(1000)).size()); }
+    @Test void mixedTokens() { assertEquals(6, lexer.tokenize("(a|b)*").size()); }
+    @Test void unicode() { assertEquals(3, lexer.tokenize("абв").size()); }
+    @Test void spaces() { assertEquals(3, lexer.tokenize("a b").size()); }
+    @Test void escapedRegular() { assertEquals(TokenType.CHAR, lexer.tokenize("\\a").getTokens().get(0).getType()); }
+    @Test void doubleBackslash() { assertEquals("\\", lexer.tokenize("\\\\").getTokens().get(0).getValue()); }
+    @Test void pipe() { assertEquals(TokenType.PIPE, lexer.tokenize("|").getTokens().get(0).getType()); }
+    @Test void star() { assertEquals(TokenType.STAR, lexer.tokenize("*").getTokens().get(0).getType()); }
+    @Test void hash() { assertEquals(TokenType.EPSILON, lexer.tokenize("#").getTokens().get(0).getType()); }
+    @Test void lparen() { assertEquals(TokenType.LPAREN, lexer.tokenize("(").getTokens().get(0).getType()); }
+    @Test void rparen() { assertEquals(TokenType.RPAREN, lexer.tokenize(")").getTokens().get(0).getType()); }
+    @Test void lbracket() { assertEquals(TokenType.LBRACKET, lexer.tokenize("[").getTokens().get(0).getType()); }
+    @Test void rbracket() { assertEquals(TokenType.RBRACKET, lexer.tokenize("]").getTokens().get(0).getType()); }
+    @Test void lbrace() { assertEquals(TokenType.LBRACE, lexer.tokenize("{").getTokens().get(0).getType()); }
+    @Test void rbrace() { assertEquals(TokenType.RBRACE, lexer.tokenize("}").getTokens().get(0).getType()); }
+    @Test void positionFirst() { assertEquals(0, lexer.tokenize("abc").getTokens().get(0).getPosition()); }
+    @Test void positionSecond() { assertEquals(1, lexer.tokenize("abc").getTokens().get(1).getPosition()); }
+    @Test void positionEscape() { assertEquals(1, lexer.tokenize("a\\*").getTokens().get(1).getPosition()); }
+    @Test void positionNumber() { assertEquals(1, lexer.tokenize("{12}").getTokens().get(1).getPosition()); }
+    @Test void immutableResult() {
+        assertThrows(UnsupportedOperationException.class,
+            () -> lexer.tokenize("a").getTokens().add(new Token(TokenType.CHAR, "x", 0)));
+    }
+    @Test void nullInput() { assertThrows(Exception.class, () -> lexer.tokenize(null)); }
+    @Test void onlyBackslashes() { assertEquals(2, lexer.tokenize("\\\\\\\\").size()); }
+    @Test void multiDigit() { assertEquals(1, lexer.tokenize("999").size()); }
+    @Test void charAfterNumber() { assertEquals(2, lexer.tokenize("1a").size()); }
+    @Test void escapedStar() { assertEquals("*", lexer.tokenize("\\*").getTokens().get(0).getValue()); }
+    @Test void escapedHash() { assertEquals("#", lexer.tokenize("\\#").getTokens().get(0).getValue()); }
+    @Test void backrefInContext() { assertEquals(4, lexer.tokenize("(a)\\1").size()); }
+    @Test void complexFull() { assertEquals(15, lexer.tokenize("(a|b)*c{2}[xy]#").size()); }
+    @Test void uppercaseChars() { assertEquals(TokenType.CHAR, lexer.tokenize("Z").getTokens().get(0).getType()); }
+    @Test void punctuation() {
+        lexer.tokenize("!@$%^&-+=:;,.<>?/~`").getTokens()
+            .forEach(t -> assertEquals(TokenType.CHAR, t.getType()));
+    }
+}

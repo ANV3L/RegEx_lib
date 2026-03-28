@@ -172,3 +172,129 @@ class OperationsTest {
         }
     }
 }
+
+
+
+@DisplayName("Operations Stress Tests (40)")
+class OperationsStressTest {
+    private DFAOperations ops;
+    private DFAIsomorphism iso;
+    private DFAEngine engine;
+    private Lexer lexer; private Parser parser; private ThompsonBuilder builder; private SubsetConstructor sub;
+
+    @BeforeEach void setUp() {
+        ops = new DFAOperations(); iso = new DFAIsomorphism(); engine = new DFAEngine();
+        lexer = new Lexer(); parser = new Parser(); builder = new ThompsonBuilder(); sub = new SubsetConstructor();
+    }
+
+    private DFA compile(String s) { return sub.convert(builder.build(parser.parse(lexer.tokenize(s)))); }
+
+    // Intersection
+    @Test void interSimple() { assertTrue(engine.matches(ops.intersect(compile("a|b"), compile("a|c")), "a")); }
+    @Test void interReject() { assertFalse(engine.matches(ops.intersect(compile("a|b"), compile("a|c")), "b")); }
+    @Test void interEmpty() { assertFalse(engine.matches(ops.intersect(compile("a"), compile("b")), "a")); }
+    @Test void interStar() { assertTrue(engine.matches(ops.intersect(compile("(a|b)*"), compile("a*")), "aaa")); }
+    @Test void interStarReject() { assertFalse(engine.matches(ops.intersect(compile("(a|b)*"), compile("a*")), "b")); }
+
+    // Difference
+    @Test void diffSimple() { assertTrue(engine.matches(ops.difference(compile("a|b"), compile("a")), "b")); }
+    @Test void diffReject() { assertFalse(engine.matches(ops.difference(compile("a|b"), compile("a")), "a")); }
+    @Test void diffSame() { assertFalse(engine.matches(ops.difference(compile("a"), compile("a")), "a")); }
+    @Test void diffStar() { assertTrue(engine.matches(ops.difference(compile("(a|b)*"), compile("a*")), "b")); }
+    @Test void diffStarReject() { assertFalse(engine.matches(ops.difference(compile("(a|b)*"), compile("a*")), "")); }
+
+    // Union
+    @Test void unionSimple() { assertTrue(engine.matches(ops.union(compile("a"), compile("b")), "a")); }
+    @Test void unionSimple2() { assertTrue(engine.matches(ops.union(compile("a"), compile("b")), "b")); }
+    @Test void unionReject() { assertFalse(engine.matches(ops.union(compile("a"), compile("b")), "c")); }
+    @Test void unionStar() { assertTrue(engine.matches(ops.union(compile("a*"), compile("b*")), "bbb")); }
+    @Test void unionEmpty() { assertTrue(engine.matches(ops.union(compile("a*"), compile("b*")), "")); }
+
+    // Complement
+    @Test void compAccept() { assertTrue(engine.matches(ops.complement(compile("a")), "")); }
+    @Test void compReject() { assertFalse(engine.matches(ops.complement(compile("a")), "a")); }
+    @Test void compLong() { assertTrue(engine.matches(ops.complement(compile("a")), "aa")); }
+    @Test void compStar() { assertFalse(engine.matches(ops.complement(compile("a*")), "aaa")); }
+
+    // Inversion
+    @Test void invertThrows() { assertThrows(UnsupportedOperationException.class, () -> ops.invert(compile("a"))); }
+
+    // Isomorphism / Equivalence
+    @Test void equivSame() { assertTrue(iso.areEquivalent(compile("a"), compile("a"))); }
+    @Test void equivAltOrder() { assertTrue(iso.areEquivalent(compile("a|b"), compile("b|a"))); }
+    @Test void equivDuplicate() { assertTrue(iso.areEquivalent(compile("a"), compile("a|a"))); }
+    @Test void notEquiv() { assertFalse(iso.areEquivalent(compile("a"), compile("b"))); }
+    @Test void isoSame() { assertTrue(iso.areIsomorphic(compile("a"), compile("a"))); }
+
+    // Non-mutation
+    @Test void intersectNoMutate() {
+        DFA a = compile("a|b"), b = compile("a|c");
+        int sizeA = a.getStates().size(), sizeB = b.getStates().size();
+        ops.intersect(a, b);
+        assertEquals(sizeA, a.getStates().size());
+        assertEquals(sizeB, b.getStates().size());
+    }
+    @Test void diffNoMutate() {
+        DFA a = compile("a|b"), b = compile("a");
+        int size = a.getStates().size();
+        ops.difference(a, b);
+        assertEquals(size, a.getStates().size());
+    }
+    @Test void unionNoMutate() {
+        DFA a = compile("a"), b = compile("b");
+        ops.union(a, b);
+        assertTrue(engine.matches(a, "a"));
+        assertFalse(engine.matches(a, "b"));
+    }
+
+    // Complex intersections
+    @Test void interComplex() {
+        DFA r = ops.intersect(compile("(a|b)*"), compile("(b|c)*"));
+        assertTrue(engine.matches(r, "bbb"));
+        assertFalse(engine.matches(r, "a"));
+    }
+
+    // Chaining
+    @Test void chainOperations() {
+        DFA ab = ops.union(compile("a"), compile("b"));
+        DFA notA = ops.difference(ab, compile("a"));
+        assertTrue(engine.matches(notA, "b"));
+        assertFalse(engine.matches(notA, "a"));
+    }
+
+    // Result is full DFA
+    @Test void resultUsable() {
+        DFA r = ops.intersect(compile("a|b"), compile("b|c"));
+        DFA r2 = ops.union(r, compile("d"));
+        assertTrue(engine.matches(r2, "b"));
+        assertTrue(engine.matches(r2, "d"));
+        assertFalse(engine.matches(r2, "a"));
+    }
+
+    // MakeComplete
+    @Test void makeCompleteWorks() {
+        DFA d = compile("a");
+        DFA full = ops.makeComplete(d, d.getAlphabet());
+        assertTrue(full.isComplete());
+    }
+
+    @Test void makeCompleteNotMutate() {
+        DFA d = compile("a");
+        ops.makeComplete(d, d.getAlphabet());
+        assertEquals(2, d.getStates().size());
+    }
+
+    // Alphabet merging
+    @Test void differentAlphabets() {
+        DFA r = ops.intersect(compile("a"), compile("b"));
+        assertFalse(engine.matches(r, "a"));
+        assertFalse(engine.matches(r, "b"));
+    }
+
+    @Test void largerAlphabet() {
+        DFA r = ops.union(compile("[abc]"), compile("[def]"));
+        assertTrue(engine.matches(r, "a"));
+        assertTrue(engine.matches(r, "f"));
+        assertFalse(engine.matches(r, "g"));
+    }
+}

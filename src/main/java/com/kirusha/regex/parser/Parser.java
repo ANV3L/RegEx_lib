@@ -147,7 +147,17 @@ public class Parser {
                 throw error("Unexpected '{'");
             case NUMBER:
                 advance();
-                return new LiteralNode(token.getValue());
+                String numVal = token.getValue();
+                if (numVal.length() == 1) {
+                    return new LiteralNode(numVal);
+                }
+                // Разбить многозначное число на конкатенацию отдельных символов-литералов
+                ASTNode numResult = new LiteralNode(String.valueOf(numVal.charAt(0)));
+                for (int ci = 1; ci < numVal.length(); ci++) {
+                    numResult = new ConcatenationNode(numResult, 
+                        new LiteralNode(String.valueOf(numVal.charAt(ci))));
+                }
+                return numResult;
 
             default:
                 throw error("Unexpected token: " + token.getType());
@@ -184,9 +194,14 @@ public class Parser {
 
             switch (token.getType()) {
                 case CHAR:
-                case NUMBER:
                 case EPSILON:
                     symbols.add(token.getValue());
+                    break;
+                case NUMBER:
+                    // Inside char class, each digit is a separate symbol
+                    for (char ch : token.getValue().toCharArray()) {
+                        symbols.add(String.valueOf(ch));
+                    }
                     break;
                 case BACKREF:
                     symbols.add("\\" + token.getValue());
