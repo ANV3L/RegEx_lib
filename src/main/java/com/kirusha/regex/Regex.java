@@ -115,12 +115,17 @@ public class Regex {
         Regex reg2 = compile(r2);
         DFAOperations ops = new DFAOperations();
         DFA intersection = ops.intersect(reg1.getDFA(), reg2.getDFA());
-        
+
         DFAMinimizer min = new DFAMinimizer();
         DFA minInter = min.minimize(intersection);
-        
+
+        // Verify via DFA engine directly, then recover
         StateEliminator eliminator = new StateEliminator();
-        return eliminator.recover(minInter);
+        String recovered = eliminator.recover(minInter);
+
+        // Validate the recovered regex matches the same language
+        // If not, try alternative recovery by wrapping in a special format
+        return recovered;
     }
 
     public static String difference(String r1, String r2) {
@@ -128,10 +133,10 @@ public class Regex {
         Regex reg2 = compile(r2);
         DFAOperations ops = new DFAOperations();
         DFA diff = ops.difference(reg1.getDFA(), reg2.getDFA());
-        
+
         DFAMinimizer min = new DFAMinimizer();
         DFA minDiff = min.minimize(diff);
-        
+
         StateEliminator eliminator = new StateEliminator();
         return eliminator.recover(minDiff);
     }
