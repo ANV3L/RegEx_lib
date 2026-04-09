@@ -15,9 +15,6 @@ import com.kirusha.regex.parser.Parser;
 import com.kirusha.regex.parser.ParserResult;
 import com.kirusha.regex.recovery.StateEliminator;
 
-/**
- * Главный класс библиотеки регулярных выражений.
- */
 public class Regex {
 
     private final String pattern;
@@ -32,12 +29,6 @@ public class Regex {
         this.groupCount = groupCount;
     }
 
-    /**
-     * Компилирует регулярное выражение в автомат.
-     *
-     * @param regex строка регулярного выражения
-     * @return скомпилированный объект Regex
-     */
     public static Regex compile(String regex) {
         Lexer lexer = new Lexer();
         LexerResult lexerResult = lexer.tokenize(regex);
@@ -57,9 +48,6 @@ public class Regex {
         return new Regex(regex, minDfa, nfa, parserResult.getGroupCount());
     }
 
-    /**
-     * Проверяет соответствие строки регулярному выражению.
-     */
     public boolean matches(String input) {
         if (groupCount > 0) {
             NFAEngine engine = new NFAEngine();
@@ -70,9 +58,6 @@ public class Regex {
         }
     }
 
-    /**
-     * Проверяет соответствие и возвращает MatchResult с группами захвата.
-     */
     public MatchResult match(String input) {
         if (groupCount > 0) {
             NFAEngine engine = new NFAEngine();
@@ -83,16 +68,10 @@ public class Regex {
         }
     }
 
-    /**
-     * Статический метод проверки.
-     */
     public static boolean matches(String regex, String input) {
         return compile(regex).matches(input);
     }
 
-    /**
-     * Восстанавливает регулярное выражение из скомпилированного DFA.
-     */
     public String recover() {
         StateEliminator eliminator = new StateEliminator();
         return eliminator.recover(compiledDFA);
@@ -106,10 +85,6 @@ public class Regex {
         return compiledDFA;
     }
 
-    // ==========================================
-    // СТАТИЧЕСКИЕ ОПЕРАЦИИ НАД ЯЗЫКАМИ
-    // ==========================================
-
     public static String intersect(String r1, String r2) {
         Regex reg1 = compile(r1);
         Regex reg2 = compile(r2);
@@ -119,12 +94,9 @@ public class Regex {
         DFAMinimizer min = new DFAMinimizer();
         DFA minInter = min.minimize(intersection);
 
-        // Verify via DFA engine directly, then recover
         StateEliminator eliminator = new StateEliminator();
         String recovered = eliminator.recover(minInter);
 
-        // Validate the recovered regex matches the same language
-        // If not, try alternative recovery by wrapping in a special format
         return recovered;
     }
 

@@ -1,34 +1,29 @@
 package com.kirusha.regex.engine;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import com.kirusha.regex.nfa.NFA;
 import com.kirusha.regex.nfa.NFAState;
 
-import java.util.*;
-
-/**
- * Матчинг строки через NFA с поддержкой групп захвата.
- */
 public class NFAEngine {
 
-    /**
-     * Проверяет, соответствует ли строка NFA.
-     */
     public boolean matches(NFA nfa, String input) {
         return match(nfa, input, nfa.getGroupCount()).matches();
     }
 
-    /**
-     * Проверяет соответствие и возвращает MatchResult с группами захвата.
-     */
     public MatchResult match(NFA nfa, String input, int groupCount) {
-        // Для поддержки групп нужен backtracking DFS
         String[] bestMatchGroups = new String[groupCount + 1];
         int[] groupStarts = new int[groupCount + 1];
         Arrays.fill(groupStarts, -1);
         boolean matched = dfs(nfa, input, 0, nfa.getStartState(), new HashSet<>(), bestMatchGroups, groupStarts, "");
         
         if (matched) {
-            bestMatchGroups[0] = input; // 0-я группа — всё совпадение
+            bestMatchGroups[0] = input;
             List<String> groupsList = new ArrayList<>();
             for (String g : bestMatchGroups) {
                 groupsList.add(g == null ? "" : g);
@@ -61,7 +56,6 @@ public class NFAEngine {
             return true;
         }
 
-        // Epsilon переходы
         for (NFAState epsTarget : current.getEpsilonTransitions()) {
             if (!visitedEps.contains(epsTarget)) {
                 visitedEps.add(epsTarget);
@@ -72,17 +66,14 @@ public class NFAEngine {
             }
         }
 
-        // Символьные переходы
         if (pos < input.length()) {
             String symbol = String.valueOf(input.charAt(pos));
             Set<NFAState> targets = current.getTransitions().get(symbol);
             if (targets != null) {
                 for (NFAState target : targets) {
-                    // КЛЮЧЕВОЕ ИСПРАВЛЕНИЕ: копируем groupStarts для нового пути
                     int[] gsClone = groupStarts.clone();
                     String[] grClone = groups.clone();
                     if (dfs(nfa, input, pos + 1, target, new HashSet<>(), grClone, gsClone, pathStr + symbol)) {
-                        // Копируем результат обратно
                         System.arraycopy(grClone, 0, groups, 0, groups.length);
                         System.arraycopy(gsClone, 0, groupStarts, 0, groupStarts.length);
                         return true;
@@ -91,7 +82,6 @@ public class NFAEngine {
             }
         }
 
-        // Backreference переходы
         for (Map.Entry<Integer, NFAState> entry : current.getBackrefTransitions().entrySet()) {
             int groupNum = entry.getKey();
             NFAState target = entry.getValue();
@@ -110,7 +100,6 @@ public class NFAEngine {
             }
         }
 
-        // ОТКАТ
         if (groupClose != -1 && groupStarts[groupClose] != -1) {
             groups[groupClose] = savedGroupValue;
         }

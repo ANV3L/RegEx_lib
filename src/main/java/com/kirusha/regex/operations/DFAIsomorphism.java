@@ -1,18 +1,15 @@
 package com.kirusha.regex.operations;
 
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.Queue;
+
 import com.kirusha.regex.dfa.DFA;
 import com.kirusha.regex.dfa.DFAState;
 
-import java.util.*;
-
-/**
- * Проверка двух DFA на изоморфизм.
- */
 public class DFAIsomorphism {
 
-    /**
-     * Проверяет, изоморфны ли два DFA.
-     */
     public boolean areIsomorphic(DFA a, DFA b) {
         if (a.getStates().size() != b.getStates().size() || 
             a.getAcceptStates().size() != b.getAcceptStates().size() ||
@@ -55,9 +52,6 @@ public class DFAIsomorphism {
         return true;
     }
 
-    /**
-     * Проверяет, эквивалентны ли два DFA.
-     */
     public boolean areEquivalent(DFA a, DFA b) {
         DFAOperations ops = new DFAOperations();
         DFA diff1 = ops.difference(a, b);

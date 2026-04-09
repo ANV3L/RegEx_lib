@@ -1,9 +1,14 @@
 package com.kirusha.regex.recovery;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import com.kirusha.regex.dfa.DFA;
 import com.kirusha.regex.dfa.DFAState;
-
-import java.util.*;
 
 public class StateEliminator {
 
@@ -88,7 +93,6 @@ public class StateEliminator {
     }
 
     private String escapeSymbol(String sym) {
-        // Escape meta characters that would be misinterpreted by our parser
         if (sym.length() == 1) {
             char c = sym.charAt(0);
             if (c == '|' || c == '*' || c == '(' || c == ')' ||
@@ -142,7 +146,6 @@ public class StateEliminator {
             return b;
         if (b == null || b.equals("#"))
             return a;
-        // Wrap alternation in parens for correct precedence
         String left = needsParensForConcat(a) ? "(" + a + ")" : a;
         String right = needsParensForConcat(b) ? "(" + b + ")" : b;
         return left + right;
@@ -161,7 +164,6 @@ public class StateEliminator {
             else if (c == ')')
                 depth--;
             else if (c == '[') {
-                // skip to matching ]
                 i++;
                 while (i < r.length() && r.charAt(i) != ']') {
                     if (r.charAt(i) == '\\')
@@ -188,7 +190,7 @@ public class StateEliminator {
         if (r.length() == 1)
             return r + "*";
         if (r.length() == 2 && r.charAt(0) == '\\')
-            return r + "*"; // escaped char
+            return r + "*";
         if (r.startsWith("(") && findMatchingParen(r, 0) == r.length() - 1) {
             return r + "*";
         }

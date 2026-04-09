@@ -1,18 +1,14 @@
 package com.kirusha.regex.dfa;
 
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
 
-/**
- * Минимизация DFA алгоритмом Хопкрофта.
- */
 public class DFAMinimizer {
 
-    /**
-     * Минимизирует DFA.
-     *
-     * @param dfa входной DFA (не мутируется)
-     * @return новый минимальный DFA
-     */
     public DFA minimize(DFA dfa) {
         DFA reachableDFA = removeUnreachable(dfa);
         
@@ -121,13 +117,6 @@ public class DFAMinimizer {
         return new DFA(newStart, finalAccepts, finalAll, new HashSet<>(alphabet));
     }
 
-    /**
-     * Удаляет недостижимые состояния из DFA.
-     * Полезно вызвать перед минимизацией.
-     *
-     * @param dfa входной DFA
-     * @return DFA без недостижимых состояний
-     */
     public DFA removeUnreachable(DFA dfa) {
         Set<DFAState> reachable = new HashSet<>();
         Queue<DFAState> queue = new LinkedList<>();

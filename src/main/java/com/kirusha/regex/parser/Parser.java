@@ -1,5 +1,8 @@
 package com.kirusha.regex.parser;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import com.kirusha.regex.lexer.LexerResult;
 import com.kirusha.regex.lexer.Token;
 import com.kirusha.regex.lexer.TokenType;
@@ -13,9 +16,6 @@ import com.kirusha.regex.parser.ast.GroupNode;
 import com.kirusha.regex.parser.ast.KleeneStarNode;
 import com.kirusha.regex.parser.ast.LiteralNode;
 import com.kirusha.regex.parser.ast.RepeatNode;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class Parser {
 
@@ -151,7 +151,7 @@ public class Parser {
                 if (numVal.length() == 1) {
                     return new LiteralNode(numVal);
                 }
-                // Разбить многозначное число на конкатенацию отдельных символов-литералов
+
                 ASTNode numResult = new LiteralNode(String.valueOf(numVal.charAt(0)));
                 for (int ci = 1; ci < numVal.length(); ci++) {
                     numResult = new ConcatenationNode(numResult, 
@@ -198,7 +198,6 @@ public class Parser {
                     symbols.add(token.getValue());
                     break;
                 case NUMBER:
-                    // Inside char class, each digit is a separate symbol
                     for (char ch : token.getValue().toCharArray()) {
                         symbols.add(String.valueOf(ch));
                     }

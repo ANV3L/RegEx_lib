@@ -1,32 +1,25 @@
 package com.kirusha.regex.operations;
 
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.Queue;
+import java.util.Set;
+
 import com.kirusha.regex.dfa.DFA;
 import com.kirusha.regex.dfa.DFAState;
 
-import java.util.*;
-
-/**
- * Теоретико-множественные операции над DFA.
- */
 public class DFAOperations {
 
-    /**
-     * Пересечение двух DFA. L(a) ∩ L(b)
-     */
     public DFA intersect(DFA a, DFA b) {
         return productConstruction(a, b, (sa, sb) -> sa.isAccepting() && sb.isAccepting());
     }
 
-    /**
-     * Разность двух DFA. L(a) \ L(b)
-     */
     public DFA difference(DFA a, DFA b) {
         return productConstruction(a, b, (sa, sb) -> sa.isAccepting() && !sb.isAccepting());
     }
 
-    /**
-     * Объединение двух DFA. L(a) ∪ L(b)
-     */
     public DFA union(DFA a, DFA b) {
         return productConstruction(a, b, (sa, sb) -> sa.isAccepting() || sb.isAccepting());
     }
@@ -42,7 +35,7 @@ public class DFAOperations {
         DFA fullA = makeComplete(a, combinedAlphabet);
         DFA fullB = makeComplete(b, combinedAlphabet);
 
-        Map<String, DFAState> newStates = new HashMap<>(); // key = idA + "," + idB
+        Map<String, DFAState> newStates = new HashMap<>();
         int idCounter = 0;
 
         String startKey = fullA.getStartState().getId() + "," + fullB.getStartState().getId();
@@ -90,9 +83,6 @@ public class DFAOperations {
         }
     }
 
-    /**
-     * Дополнение DFA. Σ* \ L(a)
-     */
     public DFA complement(DFA a) {
         DFA fullA = makeComplete(a, a.getAlphabet());
         
@@ -107,27 +97,19 @@ public class DFAOperations {
         return new DFA(fullA.getStartState(), newAccept, fullA.getStates(), fullA.getAlphabet());
     }
 
-    /**
-     * Инверсия DFA. reverse(L(a))
-     */
     public DFA invert(DFA a) {
         throw new UnsupportedOperationException("Inversion requires NFA integration, simplified fallback used");
     }
 
-    /**
-     * Делает DFA полным для заданного алфавита.
-     */
     public DFA makeComplete(DFA dfa, Set<String> alphabet) {
         int maxId = 0;
         for (DFAState s : dfa.getStates()) maxId = Math.max(maxId, s.getId());
         
-        // Deep copy states
         Map<Integer, DFAState> copiedStates = new HashMap<>();
         for (DFAState state : dfa.getStates()) {
             copiedStates.put(state.getId(), new DFAState(state.getId(), state.isAccepting()));
         }
         
-        // Restore transitions
         for (DFAState oldState : dfa.getStates()) {
             DFAState newState = copiedStates.get(oldState.getId());
             for (String symbol : dfa.getAlphabet()) {

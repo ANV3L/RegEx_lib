@@ -4,17 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-/**
- * Lexical analyzer for regex strings.
- */
 public class Lexer {
 
-    /**
-     * Main lexer method.
-     *
-     * @param input regex string
-     * @return tokens + original input
-     */
     public LexerResult tokenize(String input) {
         Objects.requireNonNull(input, "input cannot be null");
 
@@ -53,7 +44,6 @@ public class Lexer {
         if (next >= '1' && next <= '9') {
             return new Token(TokenType.BACKREF, String.valueOf(next), position);
         }
-        // \0 is treated as ordinary char according to tests
         return new Token(TokenType.CHAR, String.valueOf(next), position);
     }
 

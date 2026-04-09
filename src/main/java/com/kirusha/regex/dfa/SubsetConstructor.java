@@ -1,8 +1,5 @@
 package com.kirusha.regex.dfa;
 
-import com.kirusha.regex.nfa.NFA;
-import com.kirusha.regex.nfa.NFAState;
-
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -10,19 +7,13 @@ import java.util.Map;
 import java.util.Queue;
 import java.util.Set;
 
-/**
- * Преобразование NFA → DFA методом подмножеств (subset construction).
- */
+import com.kirusha.regex.nfa.NFA;
+import com.kirusha.regex.nfa.NFAState;
+
 public class SubsetConstructor {
 
     private int stateCounter;
 
-    /**
-     * Главный метод: преобразует NFA в DFA.
-     *
-     * @param nfa входной NFA
-     * @return построенный DFA
-     */
     public DFA convert(NFA nfa) {
         stateCounter = 0;
         Set<NFAState> startEquiv = epsilonClosure(Set.of(nfa.getStartState()));
@@ -41,7 +32,7 @@ public class SubsetConstructor {
             for (String symbol : nfa.getAlphabet()) {
                 Set<NFAState> nextNFAStates = epsilonClosure(move(currentNFAStates, symbol));
                 if (nextNFAStates.isEmpty()) {
-                    continue; // Нет перехода по этому символу
+                    continue;
                 }
                 
                 DFAState nextDFAState = dfaStatesMap.get(nextNFAStates);
@@ -71,9 +62,6 @@ public class SubsetConstructor {
         return states.contains(acceptState);
     }
 
-    /**
-     * Вычисляет epsilon-closure для множества NFA-состояний.
-     */
     private Set<NFAState> epsilonClosure(Set<NFAState> states) {
         Set<NFAState> closure = new HashSet<>(states);
         Queue<NFAState> worklist = new LinkedList<>(states);
@@ -89,10 +77,6 @@ public class SubsetConstructor {
         return closure;
     }
 
-    /**
-     * Вычисляет move — множество NFA-состояний, достижимых
-     * из данного множества по одному символу.
-     */
     private Set<NFAState> move(Set<NFAState> states, String symbol) {
         Set<NFAState> result = new HashSet<>();
         for (NFAState state : states) {
