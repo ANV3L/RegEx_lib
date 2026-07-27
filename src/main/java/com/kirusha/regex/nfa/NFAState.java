@@ -35,7 +35,7 @@ public class NFAState {
     public void addEpsilonTransition(NFAState target) {
         epsilonTransitions.add(target);
     }
-
+    
     public void addBackrefTransition(int group, NFAState target) {
         backrefTransitions.put(group, target);
     }

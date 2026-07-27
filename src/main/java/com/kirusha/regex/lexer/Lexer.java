@@ -58,32 +58,10 @@ public class Lexer {
     }
 
     private boolean isMetaCharacter(char c) {
-        return c == '|' || c == '*' || c == '(' || c == ')' ||
-                c == '[' || c == ']' || c == '{' || c == '}' || c == '#';
+        return TokenType.getToken(c) != TokenType.BadToken;
     }
 
     private TokenType metaCharToTokenType(char c) {
-        switch (c) {
-            case '|':
-                return TokenType.PIPE;
-            case '*':
-                return TokenType.STAR;
-            case '(':
-                return TokenType.LPAREN;
-            case ')':
-                return TokenType.RPAREN;
-            case '[':
-                return TokenType.LBRACKET;
-            case ']':
-                return TokenType.RBRACKET;
-            case '{':
-                return TokenType.LBRACE;
-            case '}':
-                return TokenType.RBRACE;
-            case '#':
-                return TokenType.EPSILON;
-            default:
-                throw new IllegalArgumentException("Not a meta character: " + c);
-        }
+        return TokenType.getToken(c);
     }
 }

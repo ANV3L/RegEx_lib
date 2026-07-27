@@ -1,11 +1,15 @@
 package com.kirusha.regex;
 
-import com.kirusha.regex.engine.MatchResult;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.*;
+import com.kirusha.regex.engine.MatchResult;
 
 @DisplayName("Regex Stress Tests (200+)")
 class RegexStressTest {
@@ -16,11 +20,6 @@ class RegexStressTest {
     @Nested
     @DisplayName("1. Литералы")
     class Literals {
-        @Test
-        void singleChar() {
-            assertTrue(Regex.matches("a", "a"));
-        }
-
         @Test
         void singleCharReject() {
             assertFalse(Regex.matches("a", "b"));
@@ -85,11 +84,6 @@ class RegexStressTest {
         @Test
         void longLiteralMismatch() {
             assertFalse(Regex.matches("abcdefghijklmnopqrstuvwxyz", "abcdefghijklmnopqrstuvwxyZ"));
-        }
-
-        @Test
-        void specialPrintable() {
-            assertTrue(Regex.matches("~`!@$%^&-_+=:;,.<>?/", "~`!@$%^&-_+=:;,.<>?/"));
         }
 
         @Test

@@ -29,7 +29,99 @@ public class Regex {
         this.groupCount = groupCount;
     }
 
-    public static Regex compile(String regex) {
+    public static String process(String s) {
+        StringBuilder result = new StringBuilder();
+        int i = 0;
+
+        while (i < s.length()) {
+
+            if (i + 4 < s.length()
+                && s.charAt(i) == '['
+                && isDigit(s.charAt(i + 1))
+                && s.charAt(i + 2) == '-'
+                && isDigit(s.charAt(i + 3))
+                && s.charAt(i + 4) == ']') {
+                
+                int from = s.charAt(i + 1) - '0';
+                int to = s.charAt(i + 3) - '0';
+                
+                result.append('[');
+                if (from <= to) {
+                    for (int d = from; d <= to; d++) {
+                        result.append(d);
+                    }
+                } else {
+                    result.append(s, i + 1, i + 4);
+                }
+                result.append(']');
+                i += 5;
+            }
+
+            else if (i + 4 < s.length()
+                && s.charAt(i) == '['
+                && isLowercaseLetter(s.charAt(i + 1))
+                && s.charAt(i + 2) == '-'
+                && isLowercaseLetter(s.charAt(i + 3))
+                && s.charAt(i + 4) == ']') {
+                
+                char from = s.charAt(i + 1);
+                char to = s.charAt(i + 3);
+                
+                result.append('[');
+                if (from <= to) {
+                    for (char c = from; c <= to; c++) {
+                        result.append(c);
+                    }
+                } else {
+                    result.append(s, i + 1, i + 4);
+                }
+                result.append(']');
+                i += 5;
+            }
+            
+            else if (i + 4 < s.length()
+                && s.charAt(i) == '['
+                && isUppercaseLetter(s.charAt(i + 1))
+                && s.charAt(i + 2) == '-'
+                && isUppercaseLetter(s.charAt(i + 3))
+                && s.charAt(i + 4) == ']') {
+                
+                char from = s.charAt(i + 1);
+                char to = s.charAt(i + 3);
+                
+                result.append('[');
+                if (from <= to) {
+                    for (char c = from; c <= to; c++) {
+                        result.append(c);
+                    }
+                } else {
+                    result.append(s, i + 1, i + 4);
+                }
+                result.append(']');
+                i += 5;
+            } else {
+                result.append(s.charAt(i));
+                i++;
+            }
+        }
+
+        return result.toString();
+    }
+
+    private static boolean isDigit(char c) {
+        return c >= '0' && c <= '9';
+    }
+
+    private static boolean isLowercaseLetter(char c) {
+        return c >= 'a' && c <= 'z';
+    }
+
+    private static boolean isUppercaseLetter(char c) {
+        return c >= 'A' && c <= 'Z';
+    }
+
+    public static Regex compile(String regex_old) {
+        String regex = process(regex_old);
         Lexer lexer = new Lexer();
         LexerResult lexerResult = lexer.tokenize(regex);
 

@@ -58,11 +58,11 @@ public class NFAEngine {
 
         for (NFAState epsTarget : current.getEpsilonTransitions()) {
             if (!visitedEps.contains(epsTarget)) {
-                visitedEps.add(epsTarget);
-                if (dfs(nfa, input, pos, epsTarget, visitedEps, groups, groupStarts, pathStr)) {
+                Set<NFAState> newVisited = new HashSet<>(visitedEps);
+                newVisited.add(epsTarget);
+                if (dfs(nfa, input, pos, epsTarget, newVisited, groups, groupStarts, pathStr)) {
                     return true;
                 }
-                visitedEps.remove(epsTarget);
             }
         }
 

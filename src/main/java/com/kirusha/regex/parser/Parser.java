@@ -1,285 +1,167 @@
 package com.kirusha.regex.parser;
 
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.kirusha.regex.lexer.LexerResult;
 import com.kirusha.regex.lexer.Token;
 import com.kirusha.regex.lexer.TokenType;
 import com.kirusha.regex.parser.ast.ASTNode;
-import com.kirusha.regex.parser.ast.AlternationNode;
-import com.kirusha.regex.parser.ast.BackReferenceNode;
-import com.kirusha.regex.parser.ast.CharClassNode;
-import com.kirusha.regex.parser.ast.ConcatenationNode;
-import com.kirusha.regex.parser.ast.EpsilonNode;
-import com.kirusha.regex.parser.ast.GroupNode;
-import com.kirusha.regex.parser.ast.KleeneStarNode;
-import com.kirusha.regex.parser.ast.LiteralNode;
-import com.kirusha.regex.parser.ast.RepeatNode;
+import com.kirusha.regex.parser.parselets.InfixParselet;
+import com.kirusha.regex.parser.parselets.PrefixParselet;
+import com.kirusha.regex.parser.parselets.infix.AlternationParselet;
+import com.kirusha.regex.parser.parselets.infix.ConcatenationParselet;
+import com.kirusha.regex.parser.parselets.infix.KleeneStarParselet;
+import com.kirusha.regex.parser.parselets.infix.RepeatParselet;
+import com.kirusha.regex.parser.parselets.infix.XORParselet;
+import com.kirusha.regex.parser.parselets.prefix.BackReferenceParselet;
+import com.kirusha.regex.parser.parselets.prefix.CharClassParselet;
+import com.kirusha.regex.parser.parselets.prefix.EpsilonParselet;
+import com.kirusha.regex.parser.parselets.prefix.GroupParselet;
+import com.kirusha.regex.parser.parselets.prefix.LiteralParselet;
+import com.kirusha.regex.parser.parselets.prefix.NumberParselet;
 
 public class Parser {
-
-    private List<Token> tokens;
+    public List<Token> tokens;
     private int current;
     private int groupCounter;
     private String originalInput;
 
+    private final Map<TokenType, PrefixParselet> prefixParselets = new HashMap<>();
+    private final Map<TokenType, InfixParselet> infixParselets = new HashMap<>();
+
+    public Parser() {
+        registerOperations();
+    }
+
+    private void registerOperations() {
+        registerPrefix(TokenType.CHAR, new LiteralParselet());
+        registerPrefix(TokenType.EPSILON, new EpsilonParselet());
+        registerPrefix(TokenType.NUMBER, new NumberParselet());
+        registerPrefix(TokenType.LBRACKET, new CharClassParselet());
+        registerPrefix(TokenType.LPAREN, new GroupParselet());
+        registerPrefix(TokenType.BACKREF, new BackReferenceParselet());
+
+        registerInfix(TokenType.PIPE, new AlternationParselet());
+        registerInfix(TokenType.LBRACE, new RepeatParselet());
+        registerInfix(TokenType.STAR, new KleeneStarParselet());
+        registerInfix(TokenType.XOR, new XORParselet());
+    }
+
+    private void registerPrefix(TokenType t, PrefixParselet p) {
+        prefixParselets.put(t, p);
+    }
+
+    private void registerInfix(TokenType t, InfixParselet p) {
+        infixParselets.put(t, p);
+    }
+
     public ParserResult parse(LexerResult lexerResult) {
-        if (lexerResult == null) {
-            throw new NullPointerException("LexerResult cannot be null");
-        }
+        if (lexerResult == null)
+            throw new NullPointerException("Lexer cannot be null");
 
         this.tokens = lexerResult.getTokens();
         this.current = 0;
         this.groupCounter = 0;
         this.originalInput = lexerResult.getOriginalInput();
 
-        if (tokens.isEmpty()) {
+        if (tokens.isEmpty())
             throw new ParserException("Empty input", 0);
-        }
 
-        ASTNode root = parseRegex();
+        ASTNode root = parseExpression(0);
 
-        if (!isAtEnd()) {
-            throw error("Unexpected token: " + peek().getType());
-        }
+        if (!isAtEnd())
+            throw new ParserException("Unexpected token: " + peek().getType(), peek().getPosition());
 
         return new ParserResult(root, groupCounter, originalInput);
     }
 
-    private ASTNode parseRegex() {
-        return parseUnion();
-    }
+    public ASTNode parseExpression(int precedence) {
+        Token token = advance();
 
-    private ASTNode parseUnion() {
-        ASTNode left = parseConcat();
+        PrefixParselet prefix = prefixParselets.get(token.getType());
+        if (prefix == null)
+            throw error("Expected expression, got: " + token.getType());
+        ASTNode left = prefix.parse(this, token);
 
-        while (match(TokenType.PIPE)) {
-            if (isAtEnd() || !canStartAtom()) {
-                throw error("Expected expression after '|'");
-            }
-            ASTNode right = parseConcat();
-            left = new AlternationNode(left, right);
-        }
+        while (precedence < getPrecedence()) {
+            Token nextToken = peek();
 
-        return left;
-    }
+            InfixParselet infix = infixParselets.get(nextToken.getType());
 
-    private ASTNode parseConcat() {
-        if (!canStartAtom()) {
-            throw error("Expected expression");
-        }
+            if (infix == null && canStartAtom())
+                infix = new ConcatenationParselet();
 
-        ASTNode left = parseRepeat();
-
-        while (!isAtEnd() && canStartAtom()) {
-            ASTNode right = parseRepeat();
-            left = new ConcatenationNode(left, right);
-        }
-
-        return left;
-    }
-
-    private ASTNode parseRepeat() {
-        ASTNode node = parseAtom();
-
-        while (!isAtEnd()) {
-            if (match(TokenType.STAR)) {
-                node = new KleeneStarNode(node);
-            } else if (match(TokenType.LBRACE)) {
-                Token numberToken = expect(TokenType.NUMBER, "Expected NUMBER inside repeat");
-                expect(TokenType.RBRACE, "Expected '}' after repeat count");
-
-                int count;
-                try {
-                    count = Integer.parseInt(numberToken.getValue());
-                } catch (NumberFormatException e) {
-                    throw new ParserException("Invalid repeat count: " + numberToken.getValue(),
-                            numberToken.getPosition());
-                }
-
-                node = new RepeatNode(node, count);
-            } else {
+            if (infix == null || infix.getPrecedence() < precedence)
                 break;
-            }
-        }
 
-        return node;
+            if (!(infix instanceof ConcatenationParselet))
+                advance();
+
+            left = infix.parse(this, left, nextToken);
+        }
+        return left;
     }
 
-    private ASTNode parseAtom() {
-        if (isAtEnd()) {
-            throw error("Expected atom but found end of input");
-        }
+    private int getPrecedence() {
+        if (isAtEnd())
+            return 0;
 
-        Token token = peek();
+        InfixParselet parselet = infixParselets.get(peek().getType());
 
-        switch (token.getType()) {
-            case CHAR:
-                advance();
-                return new LiteralNode(token.getValue());
+        if (parselet != null)
+            return parselet.getPrecedence();
 
-            case EPSILON:
-                advance();
-                return new EpsilonNode();
+        if (canStartAtom())
+            return new ConcatenationParselet().getPrecedence();
 
-            case BACKREF:
-                advance();
-                return new BackReferenceNode(Integer.parseInt(token.getValue()));
-
-            case LPAREN:
-                return parseGroup();
-
-            case LBRACKET:
-                return parseCharClass();
-
-            case PIPE:
-                throw error("Unexpected '|'");
-            case RPAREN:
-                throw error("Unexpected ')'");
-            case RBRACKET:
-                throw error("Unexpected ']'");
-            case RBRACE:
-                throw error("Unexpected '}'");
-            case STAR:
-                throw error("Unexpected '*'");
-            case LBRACE:
-                throw error("Unexpected '{'");
-            case NUMBER:
-                advance();
-                String numVal = token.getValue();
-                if (numVal.length() == 1) {
-                    return new LiteralNode(numVal);
-                }
-
-                ASTNode numResult = new LiteralNode(String.valueOf(numVal.charAt(0)));
-                for (int ci = 1; ci < numVal.length(); ci++) {
-                    numResult = new ConcatenationNode(numResult, 
-                        new LiteralNode(String.valueOf(numVal.charAt(ci))));
-                }
-                return numResult;
-
-            default:
-                throw error("Unexpected token: " + token.getType());
-        }
+        return 0;
     }
 
-    private ASTNode parseGroup() {
-        Token lparen = expect(TokenType.LPAREN, "Expected '('");
-
-        int groupNumber = ++groupCounter;
-
-        if (isAtEnd()) {
-            throw new ParserException("Unclosed group", lparen.getPosition());
-        }
-
-        if (peek().getType() == TokenType.RPAREN) {
-            throw new ParserException("Empty group is not allowed", peek().getPosition());
-        }
-
-        ASTNode inner = parseRegex();
-
-        expect(TokenType.RPAREN, "Expected ')' after group");
-
-        return new GroupNode(groupNumber, inner);
-    }
-
-    private ASTNode parseCharClass() {
-        expect(TokenType.LBRACKET, "Expected '['");
-
-        List<String> symbols = new ArrayList<>();
-
-        while (!isAtEnd() && peek().getType() != TokenType.RBRACKET) {
-            Token token = advance();
-
-            switch (token.getType()) {
-                case CHAR:
-                case EPSILON:
-                    symbols.add(token.getValue());
-                    break;
-                case NUMBER:
-                    for (char ch : token.getValue().toCharArray()) {
-                        symbols.add(String.valueOf(ch));
-                    }
-                    break;
-                case BACKREF:
-                    symbols.add("\\" + token.getValue());
-                    break;
-                default:
-                    throw new ParserException(
-                            "Invalid token inside char class: " + token.getType(),
-                            token.getPosition()
-                    );
-            }
-        }
-
-        expect(TokenType.RBRACKET, "Expected ']' after char class");
-
-        return new CharClassNode(symbols);
-    }
-
-    private boolean canStartAtom() {
-        if (isAtEnd()) {
+    public boolean canStartAtom() {
+        if (isAtEnd())
             return false;
-        }
 
-        TokenType type = peek().getType();
-
-        return type == TokenType.CHAR
-                || type == TokenType.NUMBER
-                || type == TokenType.EPSILON
-                || type == TokenType.BACKREF
-                || type == TokenType.LPAREN
-                || type == TokenType.LBRACKET;
+        return prefixParselets.containsKey(peek().getType());
     }
 
-    private Token peek() {
-        if (isAtEnd()) {
+    public Token peek() {
+        if (isAtEnd())
             return null;
-        }
+
         return tokens.get(current);
     }
 
-    private boolean isAtEnd() {
+    public boolean isAtEnd() {
         return current >= tokens.size();
     }
 
-    private Token advance() {
-        if (isAtEnd()) {
-            throw error("Unexpected end of input");
-        }
+    public Token advance() {
+        if (isAtEnd())
+            throw error("Unexpected end");
+
         return tokens.get(current++);
     }
 
-    private boolean match(TokenType type) {
-        if (isAtEnd()) {
-            return false;
-        }
+    public Token expect(TokenType type) {
+        if (isAtEnd())
+            throw error("Expected " + type + "but reached end");
 
-        if (peek().getType() != type) {
-            return false;
-        }
-
-        advance();
-        return true;
-    }
-
-    private Token expect(TokenType type, String message) {
-        if (isAtEnd()) {
-            throw error(message);
-        }
-
-        if (peek().getType() != type) {
-            throw error(message + ", but found " + peek().getType());
-        }
+        Token token = peek();
+        if (token.getType() != type)
+            throw error("Expected " + type + "but found" + token.getType());
 
         return advance();
     }
 
-    private ParserException error(String message) {
-        if (!isAtEnd()) {
+    public int nextGroupNumber() {
+        return ++groupCounter;
+    }
+
+    public ParserException error(String message) {
+        if (!isAtEnd())
             return new ParserException(message, peek().getPosition());
-        }
 
         if (tokens != null && !tokens.isEmpty()) {
             Token last = tokens.get(tokens.size() - 1);
@@ -288,4 +170,5 @@ public class Parser {
 
         return new ParserException(message, 0);
     }
+
 }

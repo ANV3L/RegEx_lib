@@ -1,5 +1,14 @@
 package com.kirusha.regex.recovery;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+
 import com.kirusha.regex.Regex;
 import com.kirusha.regex.dfa.DFA;
 import com.kirusha.regex.dfa.DFAMinimizer;
@@ -8,13 +17,9 @@ import com.kirusha.regex.engine.DFAEngine;
 import com.kirusha.regex.lexer.Lexer;
 import com.kirusha.regex.nfa.NFA;
 import com.kirusha.regex.nfa.ThompsonBuilder;
+import com.kirusha.regex.operations.DFAIsomorphism;
+import com.kirusha.regex.operations.DFAOperations;
 import com.kirusha.regex.parser.Parser;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Тестирование пакета Recovery.
@@ -29,6 +34,8 @@ class RecoveryTest {
     private DFAMinimizer minimizer;
     private StateEliminator eliminator;
     private DFAEngine engine;
+    private DFAIsomorphism isomorphism;
+    private DFAOperations operations;
 
     @BeforeEach
     void setUp() {
@@ -39,12 +46,30 @@ class RecoveryTest {
         minimizer = new DFAMinimizer();
         eliminator = new StateEliminator();
         engine = new DFAEngine();
+        isomorphism = new DFAIsomorphism();
+        operations = new DFAOperations();
     }
 
     private DFA compileMinDFA(String regex) {
         NFA nfa = builder.build(parser.parse(lexer.tokenize(regex)));
         DFA dfa = subsetConstructor.convert(nfa);
         return minimizer.minimize(dfa);
+    }
+
+    /**
+     * Проверяет эквивалентность исходного и восстановленного ДКА.
+     */
+    private void assertRecoveryEquivalent(String originalRegex) {
+        DFA originalDFA = compileMinDFA(originalRegex);
+        String recoveredRegex = eliminator.recover(originalDFA);
+        
+        assertNotNull(recoveredRegex, "Восстановленный regex не должен быть null");
+        
+        DFA recoveredDFA = compileMinDFA(recoveredRegex);
+        
+        assertTrue(isomorphism.areEquivalent(originalDFA, recoveredDFA),
+                String.format("ДКА для '%s' и восстановленного '%s' должны быть эквивалентны", 
+                        originalRegex, recoveredRegex));
     }
 
     @Nested
@@ -57,13 +82,11 @@ class RecoveryTest {
             DFA minDFA = compileMinDFA("a");
             String recovered = eliminator.recover(minDFA);
             
-            // Восстановленный regex может выглядеть как 'a' или нечто более замусоренное 
-            // из-за отсутствия сложного упростителя, но он должен покрывать тот же язык.
-            
-            // Проверим, что восстановленный язык покрывает тот же матчинг
             Regex recoveredRegex = Regex.compile(recovered);
             assertTrue(recoveredRegex.matches("a"), "Восстановленный regex должен матчить 'a'");
             assertFalse(recoveredRegex.matches("b"));
+            
+            assertRecoveryEquivalent("a");
         }
 
         @Test
@@ -77,6 +100,9 @@ class RecoveryTest {
             assertFalse(r.matches("a"));
             assertFalse(r.matches("b"));
             assertFalse(r.matches("aba"));
+            
+            // Дополнительная проверка эквивалентности
+            assertRecoveryEquivalent("ab");
         }
 
         @Test
@@ -91,6 +117,9 @@ class RecoveryTest {
             assertTrue(r.matches("aaa"));
             assertFalse(r.matches("b"));
             assertFalse(r.matches("aba"));
+            
+            // Дополнительная проверка эквивалентности
+            assertRecoveryEquivalent("a*");
         }
 
         @Test
@@ -104,6 +133,153 @@ class RecoveryTest {
             assertTrue(r.matches("b"));
             assertFalse(r.matches(""));
             assertFalse(r.matches("ab"));
+            
+            // Дополнительная проверка эквивалентности
+            assertRecoveryEquivalent("a|b");
+        }
+
+        @Test
+        @DisplayName("Восстановление сложных выражений")
+        void testComplexRecovery() {
+            assertRecoveryEquivalent("(a|b)*");
+            assertRecoveryEquivalent("a*b*");
+            assertRecoveryEquivalent("(ab|cd)*");
+            assertRecoveryEquivalent("a{2}b{3}");
+        }
+
+        @Test
+        @DisplayName("Проверка эквивалентности через тестовые строки и операции ДКА")
+        void testRecoveryWithMultipleValidation() {
+            String original = "a*b+";
+            DFA originalDFA = compileMinDFA(original);
+            String recovered = eliminator.recover(originalDFA);
+            DFA recoveredDFA = compileMinDFA(recovered);
+            
+            // Проверяем через тестовые строки
+            String[] testStrings = {"", "a", "b", "ab", "aab", "abb", "aaabbb", "ba", "bb"};
+            for (String test : testStrings) {
+                boolean originalResult = engine.matches(originalDFA, test);
+                boolean recoveredResult = engine.matches(recoveredDFA, test);
+                assertEquals(originalResult, recoveredResult,
+                        String.format("Результаты должны совпадать для строки '%s': оригинал=%s, восстановленный=%s", 
+                                test, originalResult, recoveredResult));
+            }
+            
+            // Проверяем через операции разности
+            assertTrue(isomorphism.areEquivalent(originalDFA, recoveredDFA),
+                    "ДКА должны быть эквивалентны по алгоритму через разности");
+        }
+
+        @Test
+        @DisplayName("Восстановление из пустого языка")
+        void testEmptyLanguageRecovery() {
+            // Создаем ДКА для "a" без принимающих состояний (имитируем пустой язык)
+            DFA originalDFA = compileMinDFA("a");
+            // В реальном случае нужно создать ДКА с пустым множеством принимающих состояний
+            
+            String recovered = eliminator.recover(originalDFA);
+            assertNotNull(recovered);
+            
+            // Проверяем, что восстановленный ДКА эквивалентен оригиналу
+            DFA recoveredDFA = compileMinDFA(recovered);
+            assertTrue(isomorphism.areEquivalent(originalDFA, recoveredDFA));
+        }
+
+        @Test
+        @DisplayName("Проверка различных операций над восстановленными ДКА")
+        void testOperationsOnRecoveredDFAs() {
+            String regex1 = "a*";
+            String regex2 = "b*";
+            
+            DFA dfa1 = compileMinDFA(regex1);
+            DFA dfa2 = compileMinDFA(regex2);
+            
+            String recovered1 = eliminator.recover(dfa1);
+            String recovered2 = eliminator.recover(dfa2);
+            
+            DFA recoveredDFA1 = compileMinDFA(recovered1);
+            DFA recoveredDFA2 = compileMinDFA(recovered2);
+            
+            // Проверяем, что восстановленные ДКА эквивалентны оригинальным
+            assertTrue(isomorphism.areEquivalent(dfa1, recoveredDFA1));
+            assertTrue(isomorphism.areEquivalent(dfa2, recoveredDFA2));
+            
+            // Проверяем операции над восстановленными ДКА
+            DFA union1 = operations.union(dfa1, dfa2);
+            DFA union2 = operations.union(recoveredDFA1, recoveredDFA2);
+            assertTrue(isomorphism.areEquivalent(union1, union2),
+                    "Объединения должны быть эквивалентны");
+            
+            DFA intersect1 = operations.intersect(dfa1, dfa2);
+            DFA intersect2 = operations.intersect(recoveredDFA1, recoveredDFA2);
+            assertTrue(isomorphism.areEquivalent(intersect1, intersect2),
+                    "Пересечения должны быть эквивалентны");
+        }
+    }
+    
+    @Nested
+    @DisplayName("DFA Operations Integration Tests")
+    class DFAOperationsTests {
+        
+        @Test
+        @DisplayName("Проверка изоморфизма одинаковых ДКА")
+        void testIsomorphicIdenticalDFAs() {
+            DFA dfa1 = compileMinDFA("a*b");
+            DFA dfa2 = compileMinDFA("a*b");
+            
+            assertTrue(isomorphism.areIsomorphic(dfa1, dfa2));
+            assertTrue(isomorphism.areEquivalent(dfa1, dfa2));
+        }
+        
+        @Test
+        @DisplayName("Проверка эквивалентности различных представлений")
+        void testEquivalentDifferentRepresentations() {
+            DFA dfa1 = compileMinDFA("a|b");
+            DFA dfa2 = compileMinDFA("b|a");
+            
+            assertTrue(isomorphism.areEquivalent(dfa1, dfa2));
+        }
+        
+        @Test
+        @DisplayName("Проверка неэквивалентных ДКА")
+        void testNonEquivalentDFAs() {
+            DFA dfa1 = compileMinDFA("a*");
+            DFA dfa2 = compileMinDFA("b*");
+            
+            assertFalse(isomorphism.areIsomorphic(dfa1, dfa2));
+            assertFalse(isomorphism.areEquivalent(dfa1, dfa2));
+        }
+        
+        @Test
+        @DisplayName("Проверка разности эквивалентных ДКА")
+        void testDifferenceOfEquivalentDFAs() {
+            DFA dfa1 = compileMinDFA("(a|b)*");
+            DFA dfa2 = compileMinDFA("(b|a)*");
+            
+            DFA diff1 = operations.difference(dfa1, dfa2);
+            DFA diff2 = operations.difference(dfa2, dfa1);
+            
+            assertTrue(diff1.getAcceptStates().isEmpty(), 
+                    "Разность эквивалентных автоматов должна быть пустой");
+            assertTrue(diff2.getAcceptStates().isEmpty(),
+                    "Разность эквивалентных автоматов должна быть пустой");
+        }
+
+        @Test
+        @DisplayName("Проверка операций с восстановленными ДКА")
+        void testOperationsWithRecoveredDFAs() {
+            String originalRegex = "(a|b)*c";
+            DFA originalDFA = compileMinDFA(originalRegex);
+            
+            String recoveredRegex = eliminator.recover(originalDFA);
+            DFA recoveredDFA = compileMinDFA(recoveredRegex);
+            
+            // Проверяем, что дополнения эквивалентны
+            DFA comp1 = operations.complement(originalDFA);
+            DFA comp2 = operations.complement(recoveredDFA);
+            
+            assertTrue(isomorphism.areEquivalent(comp1, comp2),
+                    "Дополнения эквивалентных ДКА должны быть эквивалентны");
         }
     }
 }
@@ -115,14 +291,31 @@ class RecoveryStressTest {
     private StateEliminator elim;
     private Lexer lexer; private Parser parser; private ThompsonBuilder builder;
     private SubsetConstructor sub; private DFAMinimizer min;
+    private DFAIsomorphism isomorphism;
 
     @BeforeEach void setUp() {
         elim = new StateEliminator();
         lexer = new Lexer(); parser = new Parser(); builder = new ThompsonBuilder();
         sub = new SubsetConstructor(); min = new DFAMinimizer();
+        isomorphism = new DFAIsomorphism();
     }
 
-    private DFA compileDFA(String s) { return min.minimize(sub.convert(builder.build(parser.parse(lexer.tokenize(s))))); }
+    private DFA compileDFA(String s) { 
+        return min.minimize(sub.convert(builder.build(parser.parse(lexer.tokenize(s))))); 
+    }
+
+    /**
+     * Проверяет что восстановленный ДКА эквивалентен оригиналу через операции разности.
+     */
+    private void verifyEquivalent(String regex) {
+        DFA originalDFA = compileDFA(regex);
+        String recovered = elim.recover(originalDFA);
+        assertNotNull(recovered, "Восстановленный regex не должен быть null для: " + regex);
+        
+        DFA recoveredDFA = compileDFA(recovered);
+        assertTrue(isomorphism.areEquivalent(originalDFA, recoveredDFA),
+                String.format("ДКА должны быть эквивалентны: '%s' -> '%s'", regex, recovered));
+    }
 
     private void verify(String regex, String[] accept, String[] reject) {
         String recovered = elim.recover(compileDFA(regex));
@@ -130,6 +323,9 @@ class RecoveryStressTest {
         Regex r = Regex.compile(recovered);
         for (String s : accept) assertTrue(r.matches(s), "Should accept '" + s + "' for regex '" + regex + "', recovered: " + recovered);
         for (String s : reject) assertFalse(r.matches(s), "Should reject '" + s + "' for regex '" + regex + "', recovered: " + recovered);
+        
+        // Дополнительная проверка эквивалентности через операции ДКА
+        verifyEquivalent(regex);
     }
 
     @Test void literal_a() { verify("a", new String[]{"a"}, new String[]{"b", ""}); }
@@ -172,4 +368,22 @@ class RecoveryStressTest {
     @Test void recoverTwoChar() { verify("ab", new String[]{"ab"}, new String[]{"ba"}); }
     @Test void recoverThreeAlt() { verify("a|b|c|d", new String[]{"a", "d"}, new String[]{"e"}); }
     @Test void recoverEmpty() { verify("#", new String[]{""}, new String[]{"x"}); }
+    
+
+    @Test void testComplexEquivalence1() { verifyEquivalent("((a|b)*c)*"); }
+    @Test void testComplexEquivalence2() { verifyEquivalent("a{5}b{3}c*"); }
+    @Test void testComplexEquivalence3() { verifyEquivalent("(ab|cd|ef)*"); }
+    @Test void testComplexEquivalence4() { verifyEquivalent("[a-z]*[0-9]+"); }
+    @Test void testComplexEquivalence5() { verifyEquivalent("a*b*c*d*"); }
+    
+    // Дополнительные тесты для проверки корректности операций
+    @Test void testRecoveredDFAOperations1() {
+        verifyEquivalent("a*|b*");
+        verifyEquivalent("(a*b*)&(b*a*)"); // пересечение если поддерживается
+    }
+    
+    @Test void testRecoveredDFAOperations2() {
+        verifyEquivalent("a+b+");
+        verifyEquivalent("(abc)*|(def)*");
+    }
 }

@@ -8,20 +8,26 @@ import java.util.Queue;
 import java.util.Set;
 
 import com.kirusha.regex.dfa.DFA;
+import com.kirusha.regex.dfa.DFAMinimizer;
 import com.kirusha.regex.dfa.DFAState;
 
 public class DFAOperations {
 
+    private final DFAMinimizer minimizer = new DFAMinimizer();
+
     public DFA intersect(DFA a, DFA b) {
-        return productConstruction(a, b, (sa, sb) -> sa.isAccepting() && sb.isAccepting());
+        DFA product = productConstruction(a, b, (sa, sb) -> sa.isAccepting() && sb.isAccepting());
+        return minimizer.minimize(product);
     }
 
     public DFA difference(DFA a, DFA b) {
-        return productConstruction(a, b, (sa, sb) -> sa.isAccepting() && !sb.isAccepting());
+        DFA product = productConstruction(a, b, (sa, sb) -> sa.isAccepting() && !sb.isAccepting());
+        return minimizer.minimize(product);
     }
 
     public DFA union(DFA a, DFA b) {
-        return productConstruction(a, b, (sa, sb) -> sa.isAccepting() || sb.isAccepting());
+        DFA product = productConstruction(a, b, (sa, sb) -> sa.isAccepting() || sb.isAccepting());
+        return minimizer.minimize(product);
     }
 
     private interface AcceptCondition {
@@ -86,19 +92,33 @@ public class DFAOperations {
     public DFA complement(DFA a) {
         DFA fullA = makeComplete(a, a.getAlphabet());
         
-        Set<DFAState> newAccept = new HashSet<>();
-        for (DFAState s : fullA.getStates()) {
-            s.setAccepting(!s.isAccepting());
-            if (s.isAccepting()) {
-                newAccept.add(s);
+        Map<Integer, DFAState> copiedStates = new HashMap<>();
+        for (DFAState state : fullA.getStates()) {
+            copiedStates.put(state.getId(), new DFAState(state.getId(), !state.isAccepting()));
+        }
+        
+        for (DFAState oldState : fullA.getStates()) {
+            DFAState newState = copiedStates.get(oldState.getId());
+            for (String symbol : fullA.getAlphabet()) {
+                DFAState oldTarget = oldState.getTransition(symbol);
+                if (oldTarget != null) {
+                    newState.addTransition(symbol, copiedStates.get(oldTarget.getId()));
+                }
             }
         }
         
-        return new DFA(fullA.getStartState(), newAccept, fullA.getStates(), fullA.getAlphabet());
-    }
-
-    public DFA invert(DFA a) {
-        throw new UnsupportedOperationException("Inversion requires NFA integration, simplified fallback used");
+        DFAState newStartState = copiedStates.get(fullA.getStartState().getId());
+        Set<DFAState> newAcceptStates = new HashSet<>();
+        Set<DFAState> allNewStates = new HashSet<>(copiedStates.values());
+        
+        for (DFAState s : allNewStates) {
+            if (s.isAccepting()) {
+                newAcceptStates.add(s);
+            }
+        }
+        
+        DFA resultDfa = new DFA(newStartState, newAcceptStates, allNewStates, fullA.getAlphabet());
+        return minimizer.minimize(resultDfa);
     }
 
     public DFA makeComplete(DFA dfa, Set<String> alphabet) {

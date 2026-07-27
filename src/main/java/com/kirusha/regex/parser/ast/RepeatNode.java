@@ -1,17 +1,12 @@
 package com.kirusha.regex.parser.ast;
 
-public class RepeatNode extends ASTNode {
+public class RepeatNode extends UnaryNode {
 
-    private final ASTNode child;
     private final int count;
 
     public RepeatNode(ASTNode child, int count) {
-        this.child = child;
+        super(child);
         this.count = count;
-    }
-
-    public ASTNode getChild() {
-        return child;
     }
 
     public int getCount() {
@@ -20,6 +15,6 @@ public class RepeatNode extends ASTNode {
 
     @Override
     public String toString() {
-        return "Repeat(" + child + ", " + count + ")";
+        return "Repeat(" + getChild() + ", " + count + ")";
     }
 }
