@@ -106,9 +106,9 @@ class EngineTest {
         }
 
         @Test
-        @DisplayName("'#' принимает только ''")
+        @DisplayName("'~' принимает только ''")
         void epsilonMatch() {
-            DFA dfa = buildDFA("#");
+            DFA dfa = buildDFA("~");
             assertTrue(dfaEngine.matches(dfa, ""));
             assertFalse(dfaEngine.matches(dfa, "a"));
         }

@@ -84,9 +84,9 @@ class ParserTest {
         }
 
         @Test
-        @DisplayName("'#' -> EpsilonNode")
+        @DisplayName("'~' -> EpsilonNode")
         void epsilon() {
-            ASTNode root = root("#");
+            ASTNode root = root("~");
             assertInstanceOf(EpsilonNode.class, root);
         }
 
@@ -167,9 +167,9 @@ class ParserTest {
         }
 
         @Test
-        @DisplayName("'a#' -> Concat(Literal(a), Epsilon)")
+        @DisplayName("'a~' -> Concat(Literal(a), Epsilon)")
         void concatWithEpsilon() {
-            ASTNode root = root("a#");
+            ASTNode root = root("a~");
 
             assertInstanceOf(ConcatenationNode.class, root);
             ConcatenationNode concat = (ConcatenationNode) root;
@@ -259,21 +259,17 @@ class ParserTest {
         }
 
         @Test
-        @DisplayName("'ab*' -> Concat(a, Star(b))")
+        @DisplayName("'ab*' -> Star(Concat(a, b))")
         void starHigherThanConcat() {
             ASTNode root = root("ab*");
 
-            assertInstanceOf(ConcatenationNode.class, root);
-            ConcatenationNode concat = (ConcatenationNode) root;
+            assertInstanceOf(KleeneStarNode.class, root);
+            KleeneStarNode star = (KleeneStarNode) root;
 
-            assertInstanceOf(LiteralNode.class, concat.getLeft());
-            assertInstanceOf(KleeneStarNode.class, concat.getRight());
-
+            assertInstanceOf(ConcatenationNode.class, star.getChild());
+            ConcatenationNode concat = (ConcatenationNode) star.getChild();
             assertEquals("a", ((LiteralNode) concat.getLeft()).getValue());
-
-            KleeneStarNode star = (KleeneStarNode) concat.getRight();
-            assertInstanceOf(LiteralNode.class, star.getChild());
-            assertEquals("b", ((LiteralNode) star.getChild()).getValue());
+            assertEquals("b", ((LiteralNode) concat.getRight()).getValue());
         }
 
         @Test
@@ -289,7 +285,7 @@ class ParserTest {
         }
 
         @Test
-        @DisplayName("'a|bc*' -> Alt(a, Concat(b, Star(c)))")
+        @DisplayName("'a|bc*' -> Alt(a, Star(Concat(b, c)))")
         void fullPriorityExample() {
             ASTNode root = root("a|bc*");
 
@@ -297,16 +293,13 @@ class ParserTest {
             AlternationNode alt = (AlternationNode) root;
 
             assertInstanceOf(LiteralNode.class, alt.getLeft());
-            assertInstanceOf(ConcatenationNode.class, alt.getRight());
+            assertInstanceOf(KleeneStarNode.class, alt.getRight());
 
-            ConcatenationNode concat = (ConcatenationNode) alt.getRight();
-            assertInstanceOf(LiteralNode.class, concat.getLeft());
-            assertInstanceOf(KleeneStarNode.class, concat.getRight());
-
+            KleeneStarNode star = (KleeneStarNode) alt.getRight();
+            assertInstanceOf(ConcatenationNode.class, star.getChild());
+            ConcatenationNode concat = (ConcatenationNode) star.getChild();
             assertEquals("b", ((LiteralNode) concat.getLeft()).getValue());
-
-            KleeneStarNode star = (KleeneStarNode) concat.getRight();
-            assertEquals("c", ((LiteralNode) star.getChild()).getValue());
+            assertEquals("c", ((LiteralNode) concat.getRight()).getValue());
         }
     }
 
@@ -529,14 +522,14 @@ class ParserTest {
     class CharClassTests {
 
         @Test
-        @DisplayName("'[a1#]' -> symbols a, 1, #")
+        @DisplayName("'[a1~]' -> symbols a, 1, ~")
         void charClassMixedSymbols() {
-            ASTNode root = root("[a1#]");
+            ASTNode root = root("[a1~]");
 
             assertInstanceOf(CharClassNode.class, root);
             CharClassNode node = (CharClassNode) root;
 
-            assertEquals(List.of("a", "1", "#"), node.getSymbols());
+            assertEquals(List.of("a", "1", "~"), node.getSymbols());
         }
 
         @Test
@@ -635,24 +628,19 @@ class ParserTest {
         }
 
         @Test
-        @DisplayName("'(a|b)*c{2}[xy]#' -> complex AST")
+        @DisplayName("'(a|b)*c{2}[xy]~' -> complex AST")
         void fullCombined() {
-            ASTNode root = root("(a|b)*c{2}[xy]#");
+            ASTNode root = root("(a|b)*c{2}[xy]~");
 
             assertInstanceOf(ConcatenationNode.class, root);
             ConcatenationNode c1 = (ConcatenationNode) root;
 
-            // (((a|b)* concat c{2}) concat [xy]) concat #
             assertInstanceOf(ConcatenationNode.class, c1.getLeft());
             assertInstanceOf(EpsilonNode.class, c1.getRight());
 
             ConcatenationNode c2 = (ConcatenationNode) c1.getLeft();
-            assertInstanceOf(ConcatenationNode.class, c2.getLeft());
+            assertInstanceOf(RepeatNode.class, c2.getLeft());
             assertInstanceOf(CharClassNode.class, c2.getRight());
-
-            ConcatenationNode c3 = (ConcatenationNode) c2.getLeft();
-            assertInstanceOf(KleeneStarNode.class, c3.getLeft());
-            assertInstanceOf(RepeatNode.class, c3.getRight());
         }
 
         @Test
@@ -826,7 +814,7 @@ class ParserStressTest {
     private ParserResult parse(String s) { return parser.parse(lexer.tokenize(s)); }
 
     @Test void literal() { assertInstanceOf(LiteralNode.class, root("a")); }
-    @Test void epsilon() { assertInstanceOf(EpsilonNode.class, root("#")); }
+    @Test void epsilon() { assertInstanceOf(EpsilonNode.class, root("~")); }
     @Test void backref() { assertInstanceOf(BackReferenceNode.class, root("\\1")); }
     @Test void charClass() { assertInstanceOf(CharClassNode.class, root("[abc]")); }
     @Test void emptyCharClass() { assertTrue(root("[]") instanceof CharClassNode || root("[]") instanceof EpsilonNode); }
@@ -839,7 +827,7 @@ class ParserStressTest {
     @Test void groupCount1() { assertEquals(1, parse("(a)b").getGroupCount()); }
     @Test void groupCount3() { assertEquals(3, parse("(a)(b(c))").getGroupCount()); }
     @Test void precedenceAltConcat() { assertInstanceOf(AlternationNode.class, root("a|bc")); }
-    @Test void precedenceStarConcat() { assertInstanceOf(ConcatenationNode.class, root("ab*")); }
+    @Test void precedenceStarConcat() { assertInstanceOf(KleeneStarNode.class, root("ab*")); }
     @Test void nestedGroup() { assertEquals(2, parse("((a))").getGroupCount()); }
     @Test void repeatZero() { assertEquals(0, ((RepeatNode) root("a{0}")).getCount()); }
     @Test void repeatFive() { assertEquals(5, ((RepeatNode) root("a{5}")).getCount()); }
@@ -865,7 +853,7 @@ class ParserStressTest {
     @Test void groupNumber() { assertEquals(1, ((GroupNode) root("(a)")).getGroupNumber()); }
     @Test void deepGroup() { assertEquals(3, parse("((a)(b))").getGroupCount()); }
     @Test void concatEpsilon() {
-        ConcatenationNode c = (ConcatenationNode) root("a#");
+        ConcatenationNode c = (ConcatenationNode) root("a~");
         assertInstanceOf(EpsilonNode.class, c.getRight());
     }
 }

@@ -125,9 +125,9 @@ class DFATest {
         }
 
         @Test
-        @DisplayName("Краевой случай: пустая строка '#'")
+        @DisplayName("Краевой случай: пустая строка '~'")
         void epsilonConversion() {
-            DFA dfa = buildDFA("#");
+            DFA dfa = buildDFA("~");
             assertEquals(1, dfa.getStates().size());
             assertTrue(dfa.getStartState().isAccepting());
             assertTrue(dfa.getAlphabet().isEmpty());
@@ -195,8 +195,8 @@ class DFAStressTest {
 
     @Test void literalStates() { assertEquals(2, buildDFA("a").getStates().size()); }
     @Test void literalAccept() { assertEquals(1, buildDFA("a").getAcceptStates().size()); }
-    @Test void epsilonOneState() { assertEquals(1, buildDFA("#").getStates().size()); }
-    @Test void epsilonAccepting() { assertTrue(buildDFA("#").getStartState().isAccepting()); }
+    @Test void epsilonOneState() { assertEquals(1, buildDFA("~").getStates().size()); }
+    @Test void epsilonAccepting() { assertTrue(buildDFA("~").getStartState().isAccepting()); }
     @Test void altHasTransitions() {
         DFA d = buildDFA("a|b");
         assertNotNull(d.getStartState().getTransition("a"));
@@ -218,7 +218,7 @@ class DFAStressTest {
     @Test void alphabetLiteral() { assertTrue(buildDFA("a").getAlphabet().contains("a")); }
     @Test void alphabetAlt() { assertEquals(2, buildDFA("a|b").getAlphabet().size()); }
     @Test void alphabetCharClass() { assertEquals(3, buildDFA("[abc]").getAlphabet().size()); }
-    @Test void alphabetEpsilon() { assertTrue(buildDFA("#").getAlphabet().isEmpty()); }
+    @Test void alphabetEpsilon() { assertTrue(buildDFA("~").getAlphabet().isEmpty()); }
     @Test void starTransition() { assertNotNull(buildDFA("a*").getStartState().getTransition("a")); }
     @Test void concatStates() { assertTrue(buildDFA("abc").getStates().size() >= 4); }
     @Test void repeatStates() { assertTrue(buildDFA("a{3}").getStates().size() >= 4); }
@@ -241,7 +241,7 @@ class DFAStressTest {
     @Test void dfaMinNotNull() { assertNotNull(buildMinDFA("(a|b)*c{2}[xy]")); }
     @Test void dfaStartNotNull() { assertNotNull(buildDFA("abc").getStartState()); }
     @Test void dfaAcceptNotEmpty() { assertFalse(buildDFA("abc").getAcceptStates().isEmpty()); }
-    @Test void epsilonNoTransitions() { assertTrue(buildDFA("#").getStartState().getTransitions().isEmpty()); }
+    @Test void epsilonNoTransitions() { assertTrue(buildDFA("~").getStartState().getTransitions().isEmpty()); }
     @Test void minimalEquivalent() {
         DFA d1 = buildMinDFA("a|a");
         DFA d2 = buildMinDFA("a");

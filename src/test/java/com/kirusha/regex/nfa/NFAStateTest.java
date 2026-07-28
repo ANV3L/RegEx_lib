@@ -187,8 +187,8 @@ class NFAStressTest {
 
     @Test void literalStates() { assertEquals(2, build("a").getStates().size()); }
     @Test void literalAlphabet() { assertTrue(build("a").getAlphabet().contains("a")); }
-    @Test void epsilonStates() { assertEquals(2, build("#").getStates().size()); }
-    @Test void epsilonAlphabet() { assertTrue(build("#").getAlphabet().isEmpty()); }
+    @Test void epsilonStates() { assertEquals(2, build("~").getStates().size()); }
+    @Test void epsilonAlphabet() { assertTrue(build("~").getAlphabet().isEmpty()); }
     @Test void concatStates() { assertEquals(4, build("ab").getStates().size()); }
     @Test void altStates() { assertEquals(6, build("a|b").getStates().size()); }
     @Test void starStates() { assertEquals(4, build("a*").getStates().size()); }
@@ -216,12 +216,12 @@ class NFAStressTest {
     @Test void doubleStarAlphabet() { assertEquals(2, build("a*b*").getAlphabet().size()); }
     @Test void groupWithAlt() { assertTrue(build("(a|b)").getAlphabet().contains("b")); }
     @Test void fiveRepeat() { assertEquals(10, build("a{5}").getStates().size()); }
-    @Test void concatEpsilon() { assertEquals(4, build("a#b").getStates().size()); }
-    @Test void altEpsilon() { assertTrue(build("#|a").getAlphabet().contains("a")); }
+    @Test void concatEpsilon() { assertEquals(6, build("a~b").getStates().size()); }
+    @Test void altEpsilon() { assertTrue(build("~|a").getAlphabet().contains("a")); }
     @Test void groupStar() { assertTrue(build("(ab)*").getStates().size() > 4); }
     @Test void escapedLiteral() { assertTrue(build("\\*").getAlphabet().contains("*")); }
     @Test void multiCharClass() { assertEquals(5, build("[abcde]").getAlphabet().size()); }
-    @Test void fullCombined() { assertTrue(build("(a|b)*c{2}[xy]#").getAlphabet().size() >= 4); }
+    @Test void fullCombined() { assertTrue(build("(a|b)*c{2}[xy]~").getAlphabet().size() >= 4); }
     @Test void deepNesting() { assertEquals(3, build("(((a)))").getGroupCount()); }
     @Test void repeatGroup() { assertTrue(build("(ab){3}").getStates().size() > 6); }
     @Test void largeRepeat() { assertEquals(20, build("a{10}").getStates().size()); }

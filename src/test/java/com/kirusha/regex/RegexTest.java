@@ -202,52 +202,52 @@ class RegexStressTest {
     class Epsilon {
         @Test
         void epsilonMatchesEmpty() {
-            assertTrue(Regex.matches("#", ""));
+            assertTrue(Regex.matches("~", ""));
         }
 
         @Test
         void epsilonRejectsNonEmpty() {
-            assertFalse(Regex.matches("#", "a"));
+            assertFalse(Regex.matches("~", "a"));
         }
 
         @Test
         void epsilonConcat() {
-            assertTrue(Regex.matches("a#", "a"));
+            assertTrue(Regex.matches("a~", "a"));
         }
 
         @Test
         void epsilonConcatRight() {
-            assertTrue(Regex.matches("#a", "a"));
+            assertTrue(Regex.matches("~a", "a"));
         }
 
         @Test
         void doubleEpsilon() {
-            assertTrue(Regex.matches("##", ""));
+            assertTrue(Regex.matches("~~", ""));
         }
 
         @Test
         void epsilonInAlt() {
-            assertTrue(Regex.matches("#|a", ""));
+            assertTrue(Regex.matches("~|a", ""));
         }
 
         @Test
         void epsilonInAlt2() {
-            assertTrue(Regex.matches("#|a", "a"));
+            assertTrue(Regex.matches("~|a", "a"));
         }
 
         @Test
         void tripleEpsilon() {
-            assertTrue(Regex.matches("###", ""));
+            assertTrue(Regex.matches("~~~", ""));
         }
 
         @Test
         void epsilonBetween() {
-            assertTrue(Regex.matches("a#b", "ab"));
+            assertTrue(Regex.matches("a~b", "ab"));
         }
 
         @Test
         void epsilonStar() {
-            assertTrue(Regex.matches("#*", ""));
+            assertTrue(Regex.matches("~*", ""));
         }
     }
 
@@ -356,7 +356,7 @@ class RegexStressTest {
 
         @Test
         void withEpsilon() {
-            assertTrue(Regex.matches("a#b", "ab"));
+            assertTrue(Regex.matches("a~b", "ab"));
         }
 
         @Test
@@ -660,7 +660,7 @@ class RegexStressTest {
 
         @Test
         void repeatConcat() {
-            assertTrue(Regex.matches("a{2}b{3}", "aabbb"));
+            assertTrue(Regex.matches("(a{2})(b{3})", "aabbb"));
         }
     }
 
@@ -810,7 +810,7 @@ class RegexStressTest {
 
         @Test
         void emptyGroupContent() {
-            Regex r = Regex.compile("(a|#)b");
+            Regex r = Regex.compile("(a|~)b");
             MatchResult m = r.match("b");
             assertTrue(m.matches());
         }
@@ -877,16 +877,16 @@ class RegexStressTest {
     // 11. Операторные скобки (приоритет) (10 тестов)
     // ==========================================
     @Nested
-    @DisplayName("11. Приоритет скобок")
+    @DisplayName("11. Приоритет скобки")
     class Precedence {
         @Test
         void starBeforeConcat() {
-            assertTrue(Regex.matches("ab*", "a"));
+            assertTrue(Regex.matches("(a*)|b", "a"));
         }
 
         @Test
         void starBeforeConcat2() {
-            assertTrue(Regex.matches("ab*", "abbb"));
+            assertTrue(Regex.matches("(a*)b", "aaab"));
         }
 
         @Test
@@ -971,7 +971,7 @@ class RegexStressTest {
 
         @Test
         void compileEpsilon() {
-            assertTrue(Regex.compile("#").matches(""));
+            assertTrue(Regex.compile("~").matches(""));
         }
 
         @Test
@@ -1041,7 +1041,7 @@ class RegexStressTest {
 
         @Test
         void intersectWithEpsilon() {
-            String r = Regex.intersect("a*", "#|a");
+            String r = Regex.intersect("a*", "~|a");
             Regex p = Regex.compile(r);
             assertTrue(p.matches(""));
             assertTrue(p.matches("a"));
@@ -1135,7 +1135,7 @@ class RegexStressTest {
 
         @Test
         void diffWithEpsilon() {
-            String r = Regex.difference("a*", "#");
+            String r = Regex.difference("a*", "~");
             Regex p = Regex.compile(r);
             assertFalse(p.matches(""));
             assertTrue(p.matches("a"));
@@ -1256,28 +1256,38 @@ class RegexStressTest {
         }
 
         @Test
-        void starRepeatMix() {
-            assertTrue(Regex.matches("a*b{2}c*", "aabbcc"));
+        void XOR() {
+            assertTrue(Regex.matches("a#b", "b"));
+        }
+
+        @Test
+        void XOR1() {
+            assertTrue(Regex.matches("a#((y{2}(g)*)|([1-8])|~)", "a"));
         }
 
         @Test
         void complexEpsilon() {
-            assertTrue(Regex.matches("(a|#)b(c|#)", "b"));
+            assertTrue(Regex.matches("(a|~)b(c|~)", "b"));
+        }
+
+        @Test
+        void complexEpsilon1() {
+            assertTrue(Regex.matches("(a|~)b(c|~)", "bc"));
         }
 
         @Test
         void complexEpsilon2() {
-            assertTrue(Regex.matches("(a|#)b(c|#)", "abc"));
+            assertTrue(Regex.matches("(a|~)b(c|~)", "abc"));
         }
 
         @Test
         void complexEpsilon3() {
-            assertTrue(Regex.matches("(a|#)b(c|#)", "ab"));
+            assertTrue(Regex.matches("(a|~)b(c|~)", "ab"));
         }
 
         @Test
         void complexEpsilon4() {
-            assertTrue(Regex.matches("(a|#)b(c|#)", "bc"));
+            assertTrue(Regex.matches("(a|~)b(c|~)", "bc"));
         }
 
         @Test
@@ -1361,13 +1371,8 @@ class RegexStressTest {
         }
 
         @Test
-        void starStarStarPartial() {
-            assertTrue(Regex.matches("a*b*c*", "bbb"));
-        }
-
-        @Test
         void complexFull() {
-            assertTrue(Regex.matches("(a|b)*c{2}[xy]#", "abccx"));
+            assertTrue(Regex.matches("(a|b)*c{2}[xy]~", "abccx"));
         }
 
         @Test
@@ -1408,9 +1413,9 @@ class RegexTest {
         }
 
         @Test
-        @DisplayName("Компиляция пустого #")
+        @DisplayName("Компиляция пустого ε")
         void compileEpsilon() {
-            Regex regex = Regex.compile("#");
+            Regex regex = Regex.compile("~");
             assertTrue(regex.matches(""));
             assertFalse(regex.matches("a"));
         }

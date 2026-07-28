@@ -127,7 +127,7 @@ class LexerTest {
         @Test
         @DisplayName("Знаки препинания (не метасимволы) — обычные символы")
         void punctuationChars() {
-            LexerResult result = lexer.tokenize("!@$%^&-+=:;,.<>?/~`");
+            LexerResult result = lexer.tokenize("!@$%^&-+=:;,.<>?/`");
             List<Token> tokens = result.getTokens();
 
             tokens.forEach(t -> assertEquals(TokenType.CHAR, t.getType()));
@@ -200,19 +200,26 @@ class LexerTest {
         }
 
         @Test
-        @DisplayName("'#' → EPSILON")
+        @DisplayName("'~' → EPSILON")
         void epsilon() {
-            LexerResult result = lexer.tokenize("#");
+            LexerResult result = lexer.tokenize("~");
             assertEquals(TokenType.EPSILON, result.getTokens().get(0).getType());
         }
 
         @Test
-        @DisplayName("Все метасимволы подряд '|*()[]{}#'")
+        @DisplayName("'#' → XOR")
+        void xor() {
+            LexerResult result = lexer.tokenize("#");
+            assertEquals(TokenType.XOR, result.getTokens().get(0).getType());
+        }
+
+        @Test
+        @DisplayName("Все метасимволы подряд '|*()[]{}~#'")
         void allMetaChars() {
-            LexerResult result = lexer.tokenize("|*()[]{}#");
+            LexerResult result = lexer.tokenize("|*()[]{}~#");
             List<Token> tokens = result.getTokens();
 
-            assertEquals(9, tokens.size());
+            assertEquals(10, tokens.size());
             assertEquals(TokenType.PIPE, tokens.get(0).getType());
             assertEquals(TokenType.STAR, tokens.get(1).getType());
             assertEquals(TokenType.LPAREN, tokens.get(2).getType());
@@ -222,6 +229,7 @@ class LexerTest {
             assertEquals(TokenType.LBRACE, tokens.get(6).getType());
             assertEquals(TokenType.RBRACE, tokens.get(7).getType());
             assertEquals(TokenType.EPSILON, tokens.get(8).getType());
+            assertEquals(TokenType.XOR, tokens.get(9).getType());
         }
     }
 
@@ -301,11 +309,11 @@ class LexerTest {
         }
 
         @Test
-        @DisplayName("'\\#' → CHAR('#') — экранированный эпсилон")
+        @DisplayName("'\\~' → CHAR('~') — экранированный эпсилон")
         void escapedHash() {
-            LexerResult result = lexer.tokenize("\\#");
+            LexerResult result = lexer.tokenize("\\~");
             assertEquals(TokenType.CHAR, result.getTokens().get(0).getType());
-            assertEquals("#", result.getTokens().get(0).getValue());
+            assertEquals("~", result.getTokens().get(0).getValue());
         }
 
         @Test
@@ -340,9 +348,9 @@ class LexerTest {
         }
 
         @Test
-        @DisplayName("Множественное экранирование '\\*\\|\\#'")
+        @DisplayName("Множественное экранирование '\\*\\|\\~'")
         void multipleEscapes() {
-            LexerResult result = lexer.tokenize("\\*\\|\\#");
+            LexerResult result = lexer.tokenize("\\*\\|\\~");
             List<Token> tokens = result.getTokens();
 
             assertEquals(3, tokens.size());
@@ -351,7 +359,7 @@ class LexerTest {
             assertEquals(TokenType.CHAR, tokens.get(1).getType());
             assertEquals("|", tokens.get(1).getValue());
             assertEquals(TokenType.CHAR, tokens.get(2).getType());
-            assertEquals("#", tokens.get(2).getValue());
+            assertEquals("~", tokens.get(2).getValue());
         }
     }
 
@@ -491,7 +499,7 @@ class LexerTest {
     }
 
     // ==========================================
-    // 7. ЭПСИЛОН (#)
+    // 7. ЭПСИЛОН (~)
     // ==========================================
 
     @Nested
@@ -499,16 +507,16 @@ class LexerTest {
     class Epsilon {
 
         @Test
-        @DisplayName("'#' → EPSILON")
+        @DisplayName("'~' → EPSILON")
         void singleEpsilon() {
-            LexerResult result = lexer.tokenize("#");
+            LexerResult result = lexer.tokenize("~");
             assertEquals(TokenType.EPSILON, result.getTokens().get(0).getType());
         }
 
         @Test
-        @DisplayName("'a#b' → CHAR(a), EPSILON, CHAR(b)")
+        @DisplayName("'a~b' → CHAR(a), EPSILON, CHAR(b)")
         void epsilonBetweenChars() {
-            LexerResult result = lexer.tokenize("a#b");
+            LexerResult result = lexer.tokenize("a~b");
             List<Token> tokens = result.getTokens();
 
             assertEquals(3, tokens.size());
@@ -518,17 +526,17 @@ class LexerTest {
         }
 
         @Test
-        @DisplayName("'\\#' → CHAR('#') — экранированный эпсилон это обычный символ")
+        @DisplayName("'\\~' → CHAR('~') — экранированный эпсилон это обычный символ")
         void escapedEpsilonIsChar() {
-            LexerResult result = lexer.tokenize("\\#");
+            LexerResult result = lexer.tokenize("\\~");
             assertEquals(TokenType.CHAR, result.getTokens().get(0).getType());
-            assertEquals("#", result.getTokens().get(0).getValue());
+            assertEquals("~", result.getTokens().get(0).getValue());
         }
 
         @Test
-        @DisplayName("'##' → EPSILON, EPSILON")
+        @DisplayName("'~~' → EPSILON, EPSILON")
         void doubleEpsilon() {
-            LexerResult result = lexer.tokenize("##");
+            LexerResult result = lexer.tokenize("~~");
             List<Token> tokens = result.getTokens();
 
             assertEquals(2, tokens.size());
@@ -599,9 +607,9 @@ class LexerTest {
         }
 
         @Test
-        @DisplayName("'(a|b)*c{2}[xy]#' — полное комбинированное выражение")
+        @DisplayName("'(a|b)*c{2}[xy]~' — полное комбинированное выражение")
         void fullCombined() {
-        LexerResult result = lexer.tokenize("(a|b)*c{2}[xy]#");
+        LexerResult result = lexer.tokenize("(a|b)*c{2}[xy]~");
         List<Token> tokens = result.getTokens();
 
         assertEquals(15, tokens.size());
@@ -620,7 +628,7 @@ class LexerTest {
         assertEquals(TokenType.CHAR,     tokens.get(11).getType());  // x
         assertEquals(TokenType.CHAR,     tokens.get(12).getType());  // y
         assertEquals(TokenType.RBRACKET, tokens.get(13).getType());  // ]
-        assertEquals(TokenType.EPSILON,  tokens.get(14).getType());  // #
+        assertEquals(TokenType.EPSILON,  tokens.get(14).getType());  // ~
         }
 
         @Test
@@ -858,8 +866,8 @@ class LexerStressTest {
 
     @Test void empty() { assertEquals(0, lexer.tokenize("").size()); }
     @Test void singleA() { assertEquals(1, lexer.tokenize("a").size()); }
-    @Test void allMeta() { assertEquals(9, lexer.tokenize("|*()[]{}#").size()); }
-    @Test void escapedAll() { assertEquals(9, lexer.tokenize("\\|\\*\\(\\)\\[\\]\\{\\}\\#").size()); }
+    @Test void allMeta() { assertEquals(10, lexer.tokenize("|*()[]{}~#").size()); }
+    @Test void escapedAll() { assertEquals(10, lexer.tokenize("\\|\\*\\(\\)\\[\\]\\{\\}\\~\\#").size()); }
     @Test void backslashEnd() { assertThrows(LexerException.class, () -> lexer.tokenize("\\")); }
     @Test void backref1() { assertEquals(TokenType.BACKREF, lexer.tokenize("\\1").getTokens().get(0).getType()); }
     @Test void backref9() { assertEquals(TokenType.BACKREF, lexer.tokenize("\\9").getTokens().get(0).getType()); }
@@ -874,7 +882,7 @@ class LexerStressTest {
     @Test void doubleBackslash() { assertEquals("\\", lexer.tokenize("\\\\").getTokens().get(0).getValue()); }
     @Test void pipe() { assertEquals(TokenType.PIPE, lexer.tokenize("|").getTokens().get(0).getType()); }
     @Test void star() { assertEquals(TokenType.STAR, lexer.tokenize("*").getTokens().get(0).getType()); }
-    @Test void hash() { assertEquals(TokenType.EPSILON, lexer.tokenize("#").getTokens().get(0).getType()); }
+    @Test void hash() { assertEquals(TokenType.EPSILON, lexer.tokenize("~").getTokens().get(0).getType()); }
     @Test void lparen() { assertEquals(TokenType.LPAREN, lexer.tokenize("(").getTokens().get(0).getType()); }
     @Test void rparen() { assertEquals(TokenType.RPAREN, lexer.tokenize(")").getTokens().get(0).getType()); }
     @Test void lbracket() { assertEquals(TokenType.LBRACKET, lexer.tokenize("[").getTokens().get(0).getType()); }
@@ -894,12 +902,12 @@ class LexerStressTest {
     @Test void multiDigit() { assertEquals(1, lexer.tokenize("999").size()); }
     @Test void charAfterNumber() { assertEquals(2, lexer.tokenize("1a").size()); }
     @Test void escapedStar() { assertEquals("*", lexer.tokenize("\\*").getTokens().get(0).getValue()); }
-    @Test void escapedHash() { assertEquals("#", lexer.tokenize("\\#").getTokens().get(0).getValue()); }
+    @Test void escapedHash() { assertEquals("~", lexer.tokenize("\\~").getTokens().get(0).getValue()); }
     @Test void backrefInContext() { assertEquals(4, lexer.tokenize("(a)\\1").size()); }
-    @Test void complexFull() { assertEquals(15, lexer.tokenize("(a|b)*c{2}[xy]#").size()); }
+    @Test void complexFull() { assertEquals(15, lexer.tokenize("(a|b)*c{2}[xy]~").size()); }
     @Test void uppercaseChars() { assertEquals(TokenType.CHAR, lexer.tokenize("Z").getTokens().get(0).getType()); }
     @Test void punctuation() {
-        lexer.tokenize("!@$%^&-+=:;,.<>?/~`").getTokens()
+        lexer.tokenize("!@$%^&-+=:;,.<>?/`").getTokens()
             .forEach(t -> assertEquals(TokenType.CHAR, t.getType()));
     }
 }

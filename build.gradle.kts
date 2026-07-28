@@ -2,6 +2,7 @@ plugins {
     `java-library`
     application
     id("io.freefair.aspectj") version "9.5.0"
+    jacoco
 }
 
 repositories {
@@ -20,5 +21,5 @@ dependencies {
 }
 
 tasks.withType<Test> {
-    enabled = false
-}
+    useJUnitPlatform()
+}

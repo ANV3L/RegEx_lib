@@ -85,18 +85,18 @@ class ThompsonBuilderTest {
     class EpsilonTests {
 
         @Test
-        @DisplayName("'#' → NFA с 2 состояниями, пустой алфавит")
+        @DisplayName("'~' → NFA с 2 состояниями, пустой алфавит")
         void singleEpsilon() {
-            NFA nfa = buildNFA("#");
+            NFA nfa = buildNFA("~");
 
             assertEquals(2, nfa.getStates().size());
             assertTrue(nfa.getAlphabet().isEmpty());
         }
 
         @Test
-        @DisplayName("'#' → start имеет epsilon-переход в accept")
+        @DisplayName("'~' → start имеет epsilon-переход в accept")
         void epsilonTransition() {
-            NFA nfa = buildNFA("#");
+            NFA nfa = buildNFA("~");
 
             assertTrue(nfa.getStartState().getEpsilonTransitions().contains(nfa.getAcceptState()));
         }
@@ -361,9 +361,9 @@ class ThompsonBuilderTest {
         }
 
         @Test
-        @DisplayName("'(a|b)*c{2}[xy]#' → полное комбинированное выражение")
+        @DisplayName("'(a|b)*c{2}[xy]~' → полное комбинированное выражение")
         void fullCombined() {
-            NFA nfa = buildNFA("(a|b)*c{2}[xy]#");
+            NFA nfa = buildNFA("(a|b)*c{2}[xy]~");
 
             assertTrue(nfa.getAlphabet().contains("a"));
             assertTrue(nfa.getAlphabet().contains("b"));

@@ -46,14 +46,14 @@ public class StateEliminator {
 
         Map<Long, String> transitions = new HashMap<>();
 
-        transitions.put(GNFA.encodePair(startGnfa, dfa.getStartState().getId()), "#");
+        transitions.put(GNFA.encodePair(startGnfa, dfa.getStartState().getId()), "~");
 
         for (DFAState s : dfa.getStates()) {
             states.add(s.getId());
             if (s.isAccepting()) {
                 String existing = transitions.get(GNFA.encodePair(s.getId(), acceptGnfa));
                 if (existing == null) {
-                    transitions.put(GNFA.encodePair(s.getId(), acceptGnfa), "#");
+                    transitions.put(GNFA.encodePair(s.getId(), acceptGnfa), "~");
                 }
             }
 
@@ -96,7 +96,7 @@ public class StateEliminator {
         if (sym.length() == 1) {
             char c = sym.charAt(0);
             if (c == '|' || c == '*' || c == '(' || c == ')' ||
-                    c == '[' || c == ']' || c == '{' || c == '}' || c == '#' || c == '\\') {
+                    c == '[' || c == ']' || c == '{' || c == '}' || c == '~' || c == '\\') {
                 return "\\" + c;
             }
         }
@@ -142,9 +142,9 @@ public class StateEliminator {
     }
 
     private String concatRegex(String a, String b) {
-        if (a == null || a.equals("#"))
+        if (a == null || a.equals("~"))
             return b;
-        if (b == null || b.equals("#"))
+        if (b == null || b.equals("~"))
             return a;
         String left = needsParensForConcat(a) ? "(" + a + ")" : a;
         String right = needsParensForConcat(b) ? "(" + b + ")" : b;
@@ -152,6 +152,13 @@ public class StateEliminator {
     }
 
     private boolean needsParensForConcat(String r) {
+        if (r == null || r.isEmpty())
+            return false;
+        if (r.startsWith("(") && findMatchingParen(r, 0) == r.length() - 1)
+            return false;
+        if (r.startsWith("[") && findMatchingClose(r, '[', ']') == r.length() - 1)
+            return false;
+
         int depth = 0;
         for (int i = 0; i < r.length(); i++) {
             char c = r.charAt(i);
@@ -170,7 +177,7 @@ public class StateEliminator {
                         i++;
                     i++;
                 }
-            } else if (c == '|' && depth == 0)
+            } else if ((c == '|' || c == '*' || c == '{') && depth == 0)
                 return true;
         }
         return false;
@@ -185,8 +192,8 @@ public class StateEliminator {
     }
 
     private String wrapStar(String r) {
-        if (r.equals("#"))
-            return "#";
+        if (r.equals("~"))
+            return "~";
         if (r.length() == 1)
             return r + "*";
         if (r.length() == 2 && r.charAt(0) == '\\')
@@ -240,7 +247,7 @@ public class StateEliminator {
 
     private String simplify(String regex) {
         if (regex == null || regex.isEmpty())
-            return "#";
+            return "~";
         return regex;
     }
 }
